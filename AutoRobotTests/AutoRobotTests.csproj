@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AutoRobotExercises\AutoRobotExercises.csproj" />
     <ProjectReference Include="..\AutoRobot\AutoRobot.csproj" />
   </ItemGroup>
 

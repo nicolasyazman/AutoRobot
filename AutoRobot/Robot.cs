@@ -172,7 +172,7 @@ namespace AutoRobot
             MinIdxTraj = closestIdx;
             if (segment == null)
                 return new Point2D(0, 0);
-            double angle = Point2D.AbsoluteBearing(segment[0], segment[1]);
+            double angle = segment[0].AbsoluteBearing( segment[1] );
             
             CurvilinearAbscissa += Math.Abs(Speed);
 
@@ -199,7 +199,7 @@ namespace AutoRobot
                 double minAngle = 100000;
                 while (closestIdx - firstIdx < maxDeltaIdx && closestIdx < Trajectory.Count) //&& (correctionAngle > correctionAngleTol || 2 * Math.PI - correctionAngle > correctionAngleTol))
                 {
-                    correctionAngle = Point2D.AbsoluteBearing(Position, Trajectory[closestIdx]);
+                    correctionAngle = Position.AbsoluteBearing(Trajectory[closestIdx]);
                     if ((correctionAngle + Math.PI * 2) % Math.PI < minAngle)
                         minAngle = (correctionAngle + Math.PI*2) % (2*Math.PI);
                     closestIdx++;
@@ -252,10 +252,10 @@ namespace AutoRobot
 
             
             // Distance between the rear axle and the center of gravity
-            double b = Point2D.Norm(RearAxlePosition, Position);
+            double b = RearAxlePosition.Norm( Position);
             
             // l is the distance between the rear and front axles
-            double l = Point2D.Norm(RearAxlePosition, FrontAxlePosition);
+            double l = RearAxlePosition.Norm(FrontAxlePosition);
 
             // Vehicle mass in g
             double m = VehicleMass;
@@ -320,7 +320,7 @@ namespace AutoRobot
                 endIndex = Trajectory.Count-1;
             for (int i = 0; i < endIndex; i++)
             {
-                cumul += Point2D.Norm(Trajectory[i], Trajectory[i + 1]);
+                cumul += Trajectory[i].Norm( Trajectory[i + 1]);
             }
             return cumul;
         }
@@ -334,7 +334,7 @@ namespace AutoRobot
                 Point2D P1 = Trajectory[i];
                 Point2D P2 = Trajectory[i + 1];
                 Point2D MidPoint = new Point2D((P1.X + P2.X) / 2, (P1.Y + P2.Y) / 2);
-                double curDist = Point2D.Norm(MidPoint, Position);
+                double curDist = MidPoint.Norm(Position);
                 if (curDist < minDist)
                 {
                     minDist = curDist;
@@ -379,9 +379,9 @@ namespace AutoRobot
         public List<Point2D> CalculateIntermediatePointsBetween2Points(Point2D origin, Point2D dest, double nbPoints)
         {
 
-            double distance              = Point2D.Norm(origin,dest);
+            double distance              = origin.Norm(dest);
             double distanceBetweenPoints = distance / (nbPoints + 1);
-            double angle = Point2D.AbsoluteBearing(origin, dest);
+            double angle = origin.AbsoluteBearing( dest);
 
             List<Point2D> res = new List<Point2D>();
             for(int i=0; i<nbPoints; i++)
@@ -395,9 +395,9 @@ namespace AutoRobot
 
         public List<Point2D> CalculateIntermediatePointsSeparatedByDistance(Point2D origin, Point2D dest, double distanceBetweenPoints, double accumulatedDistance = 0)
         {
-            double totalDistance = Point2D.Norm(origin, dest);
+            double totalDistance = origin.Norm( dest);
             double numberPoints = (int)Math.Floor((totalDistance) / distanceBetweenPoints);
-            double angle = Point2D.AbsoluteBearing(origin, dest);
+            double angle = origin.AbsoluteBearing( dest);
 
             List<Point2D> res = new List<Point2D>();
             int i = 0;
@@ -422,10 +422,10 @@ namespace AutoRobot
                 totalPoints.AddRange(currentPoints);
                 double distanceParcourue = 0;
                 for (int j = 0; j < currentPoints.Count - 1; j++)
-                    distanceParcourue += Point2D.Norm(currentPoints[j], currentPoints[j + 1]);
+                    distanceParcourue += currentPoints[j].Norm( currentPoints[j + 1]);
 
                 distanceParcourue += distanceRestante;
-                double lengthWayPointLine = Point2D.Norm(WayPoints[i], WayPoints[i + 1]);
+                double lengthWayPointLine = WayPoints[i].Norm( WayPoints[i + 1]);
                 distanceRestante = distanceBetweenPoints - (lengthWayPointLine - distanceParcourue);
 
                 totalPoints.Add(WayPoints[i + 1]);

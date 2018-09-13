@@ -1,4 +1,5 @@
 ﻿using AutoRobot;
+using AutoRobotExercises;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -117,7 +118,7 @@ namespace AutoRobotGUI
                 double changAngle = rand.NextDouble() *3;
                 //if (i % 2 == 0)
                 changAngle *= -1;
-                Point2D newWayPoint = robot.CalculateRobotNextPositionPolar(WayPoints[i - 1], Point2D.AbsoluteBearing(WayPoints[i - 2], WayPoints[i - 1]) + changAngle, distBetweenWayPoints);
+                Point2D newWayPoint = robot.CalculateRobotNextPositionPolar(WayPoints[i - 1], WayPoints[i - 2].AbsoluteBearing( WayPoints[i - 1]) + changAngle, distBetweenWayPoints);
                 WayPoints.Add(newWayPoint);
            
                     

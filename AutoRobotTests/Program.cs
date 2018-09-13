@@ -1,6 +1,6 @@
 ﻿using System;
 using NUnit;
-
+using AutoRobotExercises;
 using AutoRobot;
 using NUnit.Framework;
 using FluentAssertions;
@@ -28,7 +28,7 @@ namespace AutoRobotTests
 
             Point2D orig = new Point2D(x1,y1);
             Point2D dest = new Point2D(x2,y2);
-            double angle = Point2D.AbsoluteBearing(orig, dest);
+            double angle = orig.AbsoluteBearing( dest);
 
             angle.Should().BeInRange(0, 2 * Math.PI);
         }
@@ -49,11 +49,11 @@ namespace AutoRobotTests
             Point2D orig = new Point2D(x1, y1);
             Point2D dest = new Point2D(x2, y2);
 
-            double angle = Point2D.AbsoluteBearing(orig, dest);
+            double angle = orig.AbsoluteBearing( dest);
 
-            Robot r = new Robot(orig);
+            MyRobot r = new MyRobot(orig, angle);
 
-            double distance = Point2D.Norm(orig, dest);
+            double distance = orig.Norm( dest);
             r.MoveRobot(r.CalculateRobotNextPositionPolar(orig, angle, distance));
 
             r.Position.X.Should().BeApproximately(x2, 0.001);
@@ -79,7 +79,7 @@ namespace AutoRobotTests
             Point2D orig = new Point2D(x1, y1);
             Point2D dest = new Point2D(x2, y2);
 
-            double angle = Point2D.AbsoluteBearing(orig, dest);
+            double angle = orig.AbsoluteBearing( dest);
             Robot r = new Robot(orig);
 
             int nbPoints = rand.Next(3, 10);
@@ -91,11 +91,11 @@ namespace AutoRobotTests
             intermediatePoints.Should().NotContain(orig);
             intermediatePoints.Should().NotContain(dest);
             
-            double distanceTot = Point2D.Norm(orig, dest);
+            double distanceTot = orig.Norm( dest);
 
             for (int i = 0; i < nbPoints; i++)
             {
-                Point2D.AbsoluteBearing(orig, intermediatePoints[i]).Should().BeApproximately(angle, 0.001);
+                orig.AbsoluteBearing( intermediatePoints[i]).Should().BeApproximately(angle, 0.001);
             }
 
             double distCumul = 0;
@@ -103,7 +103,7 @@ namespace AutoRobotTests
             intermediatePoints.Add(dest);
             for (int i = 0; i < nbPoints+1; i++)
             {
-                double distance = Point2D.Norm(intermediatePoints[i], intermediatePoints[i + 1]);
+                double distance = intermediatePoints[i].Norm( intermediatePoints[i + 1]);
                 distCumul += distance;
             }
             distCumul.Should().BeApproximately(distanceTot, 0.0001);
@@ -111,7 +111,7 @@ namespace AutoRobotTests
             // Check equidistance of points
             for (int i = 0; i < nbPoints; i++)
             {
-                Point2D.Norm(intermediatePoints[i], intermediatePoints[i + 1]).Should().BeApproximately(Point2D.Norm(intermediatePoints[i+1],intermediatePoints[i+2]),0.0001);
+                intermediatePoints[i].Norm( intermediatePoints[i + 1]).Should().BeApproximately(intermediatePoints[i + 1].Norm(intermediatePoints[i+2]),0.0001);
             }
         }
 
@@ -152,7 +152,7 @@ namespace AutoRobotTests
             double totDistanceWayPoints = 0;
 
             for (int i = 0; i < WayPoints.Count - 1;i++)
-                totDistanceWayPoints += Point2D.Norm(WayPoints[i], WayPoints[i + 1]);
+                totDistanceWayPoints += WayPoints[i].Norm( WayPoints[i + 1]);
             
             double calculatedBetweenPoints1 = 0, calculatedBetweenPoints2 = 0;
 
@@ -160,8 +160,8 @@ namespace AutoRobotTests
             int intermediatePointNext = 0;
             for (int i = 1; i < intermediatePoints.Count-1;i++)
             {
-                calculatedBetweenPoints1 = Point2D.Norm(intermediatePoints[i-1], intermediatePoints[i]);
-                calculatedBetweenPoints2 = Point2D.Norm(intermediatePoints[i], intermediatePoints[i + 1]);
+                calculatedBetweenPoints1 = intermediatePoints[i - 1].Norm( intermediatePoints[i]);
+                calculatedBetweenPoints2 = intermediatePoints[i].Norm( intermediatePoints[i + 1]);
                 
                 if (WayPoints.Contains(intermediatePoints[i]))
                 {
@@ -172,7 +172,7 @@ namespace AutoRobotTests
                 }
                 else
                 {
-                    Point2D.AbsoluteBearing(LastWaypoint, intermediatePoints[i]).Should().BeApproximately(Point2D.AbsoluteBearing(LastWaypoint, WayPoints[intermediatePointNext + 1]), 0.001);
+                    LastWaypoint.AbsoluteBearing( intermediatePoints[i]).Should().BeApproximately(LastWaypoint.AbsoluteBearing( WayPoints[intermediatePointNext + 1]), 0.001);
                 }
                 calculatedBetweenPoints1.Should().BeInRange(distanceBetweenPoints - 0.0001, distanceBetweenPoints + 0.0001);
 
@@ -205,7 +205,7 @@ namespace AutoRobotTests
                 WayPoints.Add(wayPoint);
             }
 
-            Robot robot = new Robot(WayPoints[0]);
+            MyRobot robot = new MyRobot(WayPoints[0], 0);
 
             List<Point2D> trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(WayPoints, 1.55);
             robot.Trajectory = WayPoints;
@@ -237,7 +237,7 @@ namespace AutoRobotTests
                 WayPoints.Add(wayPoint);
             }
 
-            Robot robot = new Robot(WayPoints[0]);
+            MyRobot robot = new MyRobot(WayPoints[0], WayPoints[0].AbsoluteBearing(WayPoints[1]));
 
             List<Point2D> trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(WayPoints, 1.55);
             robot.Trajectory = WayPoints;

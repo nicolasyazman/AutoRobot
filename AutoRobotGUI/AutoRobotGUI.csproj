@@ -80,6 +80,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AutoRobotExercises\AutoRobotExercises.csproj">
+      <Project>{a73a8afc-95e1-49c8-8a2e-28ca661a4f53}</Project>
+      <Name>AutoRobotExercises</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AutoRobot\AutoRobot.csproj">
       <Project>{50f5a0a4-9084-4359-9c99-10b3da48c1c0}</Project>
       <Name>AutoRobot</Name>
