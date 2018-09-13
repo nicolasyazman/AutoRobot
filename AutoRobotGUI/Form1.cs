@@ -20,6 +20,9 @@ namespace AutoRobotGUI
         public float PreviousBearing = (float)(0.6*180/Math.PI);
         double ratioX;
         double ratioY;
+
+        List<Point2D> WayPoints;
+
         private Bitmap RotateImage(Bitmap bmp, float angle)
         {
             Bitmap rotatedImage = new Bitmap(bmp.Width, bmp.Height);
@@ -66,8 +69,45 @@ namespace AutoRobotGUI
             PreviousBearing = robotBearing;
 
             pictureBox1.Image = rotatedImage;
+            /*
+            this.chart1.Series[0].Points.Clear();
+            List<List<Point2D>> corridor = robot.GetVehicleCorridor(robot.GetEstimatedFuturTrajectory(8));
+            for (int i = 0; i < corridor.Count; i++)
+            {
+                for (int j = 0; j < corridor[i].Count; j++)
+                {
+                    this.chart1.Series[0].Points.AddXY(corridor[i][j].X, corridor[i][j].Y);
+                }
+            }
+            */
             step++;
-            
+            this.chart1.Series[0].Points.Clear();
+            double ObstSize = 15;
+            List<Point2D> Obstacles = new List<Point2D>();
+            Obstacles.Add(WayPoints[1]);
+            for (int i = 0; i < Obstacles.Count; i++)
+            {
+                this.chart1.Series[2].Points.AddXY(Obstacles[i].X, Obstacles[i].Y);
+                this.chart1.Series[2].Points[0].MarkerSize = (int)ObstSize;
+            }
+
+            int VehGridX, VehGridY;
+            if (robot.IsObstacleInTrajectory(Obstacles))
+            {
+                int[,] Grid = robot.CreatePotentialField(Obstacles, out VehGridX, out VehGridY, 100, 100, ObstSize, 100);
+                List<Point2D> positions = robot.FindShortestPath(Grid, 100, 100, VehGridX, VehGridY);
+                if (positions != null)
+                {
+                    WayPoints.RemoveAt(1);
+                    WayPoints.InsertRange(1, positions);
+                    robot.Trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(WayPoints, 0.2);
+                }
+            }
+
+            for (int i = 0; i < robot.Trajectory.Count; i++)
+            {
+                this.chart1.Series[0].Points.AddXY(robot.Trajectory[i].X, robot.Trajectory[i].Y);
+            }
         }
 
         public void ResizeEvent(Object myObject,
@@ -87,15 +127,15 @@ namespace AutoRobotGUI
             double x, y;
 
 
-            rand = new Random();
+            rand = new Random(5);
 
-            int numberWayPoints = rand.Next(15, 20);
+            int numberWayPoints = 3;
 
             double maxX = -1000000;
             double maxY = -1000000;
             double minX = 100000000;
             double minY = 100000000;
-            List<Point2D> WayPoints = new List<Point2D>();
+            WayPoints = new List<Point2D>();
             double distBetweenWayPoints = 10;
             //x = rand.NextDouble() * 10;
             //y = rand.NextDouble() * 10;
@@ -160,6 +200,8 @@ namespace AutoRobotGUI
             
             this.chart1.Series.Add(new System.Windows.Forms.DataVisualization.Charting.Series("RobotMovement"));
             this.chart1.Series[1].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Point;
+            this.chart1.Series.Add(new System.Windows.Forms.DataVisualization.Charting.Series("Obstacles"));
+            this.chart1.Series[2].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Point;
 
 
             myTimer.Tick += new EventHandler(TimerEventProcessor);
@@ -168,6 +210,15 @@ namespace AutoRobotGUI
             myTimer.Interval = 50;
             myTimer.Start();
 
+            /*
+            List<List<Point2D>> corridor = robot.GetVehicleCorridor(robot.GetEstimatedFuturTrajectory(20));
+            for (int i = 0; i < corridor.Count; i++)
+            {
+                for (int j = 0; j < corridor[i].Count; j++)
+                {
+                    this.chart1.Series[0].Points.AddXY(corridor[i][j].X, corridor[i][j].Y);
+                }
+            }*/
 
            // myTimer.Stop();
         }

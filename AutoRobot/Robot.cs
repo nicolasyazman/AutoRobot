@@ -434,15 +434,20 @@ namespace AutoRobot
             return totalPoints;
         }
 
-        public List<Point2D> GetEstimatedFuturTrajectory(double estimatedDistance)
+        public List<Point2D> GetEstimatedFuturTrajectory(double estimatedDistance = 20)
         {
             List<Point2D> futurTrajectory = new List<Point2D>();
             Point2D actualPosition = new Point2D(this.Position.X, this.Position.Y);
             Robot estimatedRobot   = new Robot(actualPosition);
+            estimatedRobot.Trajectory = this.Trajectory;
+            estimatedRobot.Speed = this.Speed;
+            estimatedRobot.Fd = this.Fd;
+            estimatedRobot.Bearing = this.Bearing;
+            estimatedRobot.MinIdxTraj = this.MinIdxTraj;
             futurTrajectory.Add(actualPosition);
             double distanceCumulee = 0;
 
-            while (distanceCumulee < estimatedDistance)
+            while (distanceCumulee < estimatedDistance && estimatedRobot.MinIdxTraj < estimatedRobot.Trajectory.Count - 5)
             {
                 estimatedRobot.MoveRobot();
                 futurTrajectory.Add(estimatedRobot.Position);
@@ -452,5 +457,246 @@ namespace AutoRobot
 
             return futurTrajectory;
         }
+
+        public bool IsObstacleInTrajectory(List<Point2D> ObstaclesPos)
+        {
+            for (int obsId = 0; obsId < ObstaclesPos.Count; obsId++)
+            {
+                List<Point2D> FutureRealTrajectory = GetEstimatedFuturTrajectory(3);
+                List<List<Point2D>> Corridor = GetVehicleCorridor(FutureRealTrajectory);
+                for (int i = 0; i < Corridor.Count; i++)
+                {
+                    if (IsPointInsideRectangle(Corridor[i],ObstaclesPos[obsId]))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+
+        public List<List<Point2D>> GetVehicleCorridor(List<Point2D> Trajectory)
+        {
+            List<List<Point2D>> corridor = new List<List<Point2D>>();
+
+            int i;
+            for(i = 0; i < Trajectory.Count-1; i++)
+            {
+                double angle = Trajectory[i].AbsoluteBearing(Trajectory[i + 1]);
+                List<Point2D> vehicleBoundaries = new List<Point2D>();
+                double Margin = 0.5;
+                double distForward = this.VehicleLength + 0.5;
+                double distBehind = this.VehicleLength + 0.5 ;
+
+                double distLeft = (this.VehicleWidth / 2 + Margin);
+
+                Point2D MidPointForward = new Point2D(Trajectory[i].X + Math.Cos(angle) * distForward, Trajectory[i].Y + Math.Sin(angle) * distForward);
+                Point2D MidPointBehind = new Point2D(Trajectory[i].X + Math.Cos(angle + Math.PI) * distForward, Trajectory[i].Y + Math.Sin(angle + Math.PI) * distForward);
+
+                Point2D ForwardLeft = new Point2D(MidPointForward.X + Math.Cos(angle + Math.PI / 2) * distLeft, MidPointForward.Y + Math.Sin(angle + Math.PI / 2) * distLeft);
+                Point2D ForwardRight = new Point2D(MidPointForward.X + Math.Cos(angle - Math.PI / 2) * distLeft, MidPointForward.Y + Math.Sin(angle - Math.PI / 2) * distLeft);
+                Point2D BehindLeft = new Point2D(MidPointBehind.X + Math.Cos(angle + Math.PI + Math.PI / 2) * distLeft, MidPointBehind.Y + Math.Sin(angle + Math.PI + Math.PI / 2) * distLeft);
+                Point2D BehindRight = new Point2D(MidPointBehind.X + Math.Cos(angle + Math.PI - Math.PI / 2) * distLeft, MidPointBehind.Y + Math.Sin(angle + Math.PI - Math.PI / 2) * distLeft);
+
+                vehicleBoundaries.Add(ForwardLeft);
+                vehicleBoundaries.Add(ForwardRight);
+                vehicleBoundaries.Add(BehindLeft);
+                vehicleBoundaries.Add(BehindRight);
+                corridor.Add(vehicleBoundaries);
+            }
+            
+            return corridor;
+        }
+
+
+        double sign(Point2D p1, Point2D p2, Point2D p3)
+        {
+            return (p1.X - p3.X) * (p2.Y - p3.Y) - (p2.X - p3.X) * (p1.Y - p3.Y);
+        }
+
+        bool PointInTriangle(Point2D pt, Point2D v1, Point2D v2, Point2D v3)
+        {
+            bool b1, b2, b3;
+
+            b1 = sign(pt, v1, v2) < 0;
+            b2 = sign(pt, v2, v3) < 0;
+            b3 = sign(pt, v3, v1) < 0;
+
+            return ((b1 == b2) && (b2 == b3));
+        }
+
+        public bool IsPointInsideRectangle(List<Point2D> rectPoints, Point2D point)
+        {
+            rectPoints.Sort((point1, point2) =>  point1.Y.CompareTo(point2.Y));
+            if (PointInTriangle(point, rectPoints[0], rectPoints[1], rectPoints[2])
+                || PointInTriangle(point, rectPoints[0], rectPoints[1], rectPoints[2]))
+                return true;
+            return false;
+        }
+
+        
+        public int[,] CreatePotentialField(List<Point2D> ObstaclesGC, out int VehGridX, out int VehGridY, double GridWidth = 100, double GridHeight = 100, double SafetyDistance = 10, double LookIdx = 10)
+        {
+            double GridResolution = 1;
+
+            int NumberOfCellsPerRow = (int)Math.Ceiling(GridWidth / GridResolution);
+            int NumberOfRows = (int)Math.Ceiling(GridHeight / GridResolution);
+
+            int[,] Grid = new int[NumberOfRows, NumberOfCellsPerRow]; 
+            for (int y = 0; y < NumberOfRows; y++)
+            {
+                for (int x = 0; x < NumberOfCellsPerRow; x++)
+                {
+                    Grid[y, x] = 0;
+                }
+            }
+
+            int LookForward = 10;
+            for (int i = MinIdxTraj + LookForward; i < (int)(Math.Min(Trajectory.Count,MinIdxTraj+LookForward+LookIdx)); i++)
+            {
+                Point2D trajPoint = Trajectory[i];
+                int Gridx = (int)trajPoint.X;
+                int Gridy = (int)trajPoint.Y;
+                if (Gridx >= 0 && Gridx < GridWidth && Gridy >= 0 && Gridy < GridHeight)
+                    Grid[Gridy, Gridx] = -3;
+            }
+            for (int i = 0; i < ObstaclesGC.Count; i++)
+            {
+                double obstacleX = ObstaclesGC[i].X;
+                double obstacleY = ObstaclesGC[i].Y;
+                for (int y = 0; y < NumberOfRows; y++)
+                {
+                    for (int x = 0; x < NumberOfCellsPerRow; x++)
+                    {
+                        if (new Point2D(x,y).Norm(new Point2D(obstacleX,obstacleY)) < SafetyDistance / 6)
+                        {
+                            Grid[y, x] = -1;
+                        }
+                    }
+                }
+            }
+
+            VehGridX = (int)Math.Floor(Position.X);
+            VehGridY = (int)Math.Floor(Position.Y);
+            //Grid[VehGridY, VehGridX] = 2;
+            return Grid;
+        }
+
+
+        public List<Point2D> FindShortestPath(int[,] Grid, int GridWidth, int GridHeight, int StartX, int StartY)
+        {
+            Queue<Tuple<int, int, int>> queue = new Queue<Tuple<int, int, int>>();
+
+            queue.Enqueue(new Tuple<int, int, int>(StartX, StartY, 0));
+            int X = 0, Y = 0;
+            int Val = 0;
+            int MaximumVal = 0;
+            while (!(queue.Count == 0) && Val > -2)
+            {
+                Tuple<int,int, int> Position = queue.Dequeue();
+                
+                X = Position.Item1;
+                Y = Position.Item2;                
+                Val = Position.Item3;
+                if (Val > MaximumVal)
+                    MaximumVal = Val;
+                if (Val > -1) // Destination not found
+                {
+                    if (X - 1 >= 0 && Grid[Y, X - 1] != -1)
+                    {
+                        if (Grid[Y, X - 1] == 0)
+                        {
+                            Grid[Y, X - 1] = Val + 1;
+                            queue.Enqueue(new Tuple<int, int, int>(X - 1, Y, Val + 1));
+                        }
+                        else if (Grid[Y, X - 1] < -1)
+                        {
+                            queue.Enqueue(new Tuple<int, int, int>(X - 1, Y, -2));
+                        }
+                        
+                    }
+                    if (X + 1 < GridWidth && Grid[Y, X + 1] != -1)
+                    {
+                        if (Grid[Y, X + 1] == 0)
+                        {
+                            Grid[Y, X + 1] = Val + 1;
+                            queue.Enqueue(new Tuple<int, int, int>(X + 1, Y, Val + 1));
+                        }
+                        else if (Grid[Y,X+1] < -1)
+                        {
+                            queue.Enqueue(new Tuple<int, int, int>(X + 1, Y, -2));
+                        }
+                    }
+                    if (Y - 1 >= 0 && Grid[Y-1, X] != -1)
+                    {
+                        if (Grid[Y - 1, X] == 0)
+                        {
+                            Grid[Y - 1, X] = Val + 1;
+                            queue.Enqueue(new Tuple<int, int, int>(X, Y - 1, Val + 1));
+                        }
+                        else if (Grid[Y-1,X] < -1)
+                        {
+                            queue.Enqueue(new Tuple<int, int, int>(X, Y - 1, -2));
+                        }
+                    }
+                    if (Y + 1 < GridHeight && Grid[Y+1, X] != -1)
+                    {
+                        if (Grid[Y + 1, X] == 0)
+                        {
+                            Grid[Y + 1, X] = Val + 1;
+                            queue.Enqueue(new Tuple<int, int, int>(X, Y + 1, Val + 1));
+                        }
+                        else if (Grid[Y+1,X] < -1)
+                        {
+                            queue.Enqueue(new Tuple<int, int, int>(X, Y, -2));
+                        }
+                    }
+                }
+                else if (Val < -1)
+                {
+                    Grid[Y, X] = MaximumVal + 1;
+                }
+            }
+
+            if (Val != -2) // Not found objective
+            {
+                return null;
+            }
+
+            Val = Grid[Y, X];
+            List<Point2D> ShortestPath = new List<Point2D>();
+      //      ShortestPath.Add(new Point2D(X, Y));
+            int ValShouldBe = Val;
+            // Now do the inverse way
+            while (ValShouldBe > 0)
+            {
+                if (X - 1 >= 0 && Grid[Y, X - 1] == ValShouldBe)
+                {
+                    X = X - 1;
+                    ShortestPath.Add(new Point2D(X, Y));
+                }
+                else if (X + 1 < GridWidth && Grid[Y, X + 1] == ValShouldBe)
+                {
+                    X = X + 1;
+                    ShortestPath.Add(new Point2D(X, Y));
+                }
+                else if (Y - 1 >= 0 && Grid[Y - 1, X] == ValShouldBe)
+                {
+
+                    Y = Y - 1;
+                    ShortestPath.Add(new Point2D(X, Y));
+                }
+                else if (Y + 1 < GridHeight && Grid[Y + 1, X] == ValShouldBe)
+                {
+                    Y = Y + 1;
+                    ShortestPath.Add(new Point2D(X, Y));
+                }
+                ValShouldBe--;
+            }
+            ShortestPath.Reverse();
+            return ShortestPath;
+        }
+
     }
 }
