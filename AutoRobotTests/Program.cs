@@ -30,7 +30,7 @@ namespace AutoRobotTests
             Point2D dest = new Point2D(x2,y2);
             double angle = Point2D.AbsoluteBearing(orig, dest);
 
-            angle.Should().BeInRange(-Math.PI, Math.PI);
+            angle.Should().BeInRange(0, 2 * Math.PI);
         }
 
         [TestCase]
@@ -215,8 +215,41 @@ namespace AutoRobotTests
             {
                 robot.MoveRobot(robot.Speed);
             }
-
         }
 
+        [TestCase]
+        public static void Test_robot_acceleration_inferior_1g()
+        {
+            Random rand;
+            double x, y;
+
+
+            rand = new Random();
+
+            int numberWayPoints = rand.Next(5, 10);
+
+            List<Point2D> WayPoints = new List<Point2D>();
+            for (int i = 0; i < numberWayPoints; i++)
+            {
+                x = rand.NextDouble() * 10000;
+                y = rand.NextDouble() * 10000;
+                Point2D wayPoint = new Point2D(x, y);
+                WayPoints.Add(wayPoint);
+            }
+
+            Robot robot = new Robot(WayPoints[0]);
+
+            List<Point2D> trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(WayPoints, 1.55);
+            robot.Trajectory = WayPoints;
+            robot.Speed = 0;
+            double lastSpeed = 0;
+
+            for (int i = 0; i < 100; i++)
+            {
+                robot.MoveRobot(100);
+                (robot.Speed - lastSpeed).Should().BeLessThan(9.81);
+                lastSpeed = robot.Speed;
+            }
+        }
     }
 }
