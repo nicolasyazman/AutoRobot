@@ -433,5 +433,24 @@ namespace AutoRobot
 
             return totalPoints;
         }
+
+        public List<Point2D> GetEstimatedFuturTrajectory(double estimatedDistance)
+        {
+            List<Point2D> futurTrajectory = new List<Point2D>();
+            Point2D actualPosition = new Point2D(this.Position.X, this.Position.Y);
+            Robot estimatedRobot   = new Robot(actualPosition);
+            futurTrajectory.Add(actualPosition);
+            double distanceCumulee = 0;
+
+            while (distanceCumulee < estimatedDistance)
+            {
+                estimatedRobot.MoveRobot();
+                futurTrajectory.Add(estimatedRobot.Position);
+                distanceCumulee += futurTrajectory[futurTrajectory.Count -1].
+                    Norm(futurTrajectory[futurTrajectory.Count - 2]);
+            }
+
+            return futurTrajectory;
+        }
     }
 }
