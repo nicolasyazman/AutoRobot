@@ -160,7 +160,8 @@ namespace AutoRobotGUI
         public void ResizeEvent(Object myObject,
                                            EventArgs myEventArgs)
         {
-            this.PerformAutoScale();
+            this.chart1.Location = new Point(0, 0);
+            //this.PerformAutoScale();
             this.chart1.Width = this.Width;
             this.chart1.Height = this.Height;
         }
@@ -266,6 +267,7 @@ namespace AutoRobotGUI
             ObstaclesPositions = new List<Point2D>();
             ObstaclesPositions.Add(WayPoints[1]);
             ObstaclesPositions.Add(new Point2D(WayPoints[1].X,6.25));
+
 
             // myTimer.Stop();
         }
