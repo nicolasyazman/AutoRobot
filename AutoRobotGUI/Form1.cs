@@ -129,6 +129,7 @@ namespace AutoRobotGUI
                         // set u1 and u2 to zero
 
                             robot.Fd = 0;
+                        robot.Speed = 0;
                             u2 = 0;
                             u1 = 0;
                         }
@@ -250,7 +251,7 @@ namespace AutoRobotGUI
             pictureBox1.Visible = false;
             double ObstSize = 6;
             ObstaclesPositions = new List<Point2D>();
-            ObstaclesPositions.Add(WayPoints[1]);
+            ObstaclesPositions.Add(WayPoints[2]);
             for (int i = 0; i < ObstaclesPositions.Count; i++)
             {
                 this.chart1.Series[2].Points.AddXY(ObstaclesPositions[i].X, ObstaclesPositions[i].Y);
