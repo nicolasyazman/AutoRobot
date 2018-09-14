@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace AutoRobot
 {
-    class Class1
+    class Scene
     {
+        private List<Point2D> Obstacles;
     }
 }

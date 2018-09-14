@@ -685,7 +685,7 @@ namespace AutoRobot
 
             Val = Grid[Y, X];
             List<Point2D> ShortestPath = new List<Point2D>();
-      //      ShortestPath.Add(new Point2D(X, Y));
+            //ShortestPath.Add(new Point2D(X, Y));
             int ValShouldBe = Val;
             // Now do the inverse way
             while (ValShouldBe > 0)
@@ -714,8 +714,8 @@ namespace AutoRobot
                 ValShouldBe--;
             }
             ShortestPath.Reverse();
+
             return ShortestPath;
         }
-
     }
 }
