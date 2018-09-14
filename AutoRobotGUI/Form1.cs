@@ -22,7 +22,7 @@ namespace AutoRobotGUI
         double ratioY;
         List<Point2D> ObstaclesPositions;
         List<Point2D> WayPoints;
-        double ObstSize = 20;
+        double ObstSize = 1;
         double u1 = 2.8, u2 = 2.8;
         double ConsigneVitesse = 0.4;
         double K = 0.1;
@@ -54,7 +54,7 @@ namespace AutoRobotGUI
             for (int i = 0; i < ObstaclesPositions.Count; i++)
             {
                 this.chart1.Series[2].Points.AddXY(ObstaclesPositions[i].X, ObstaclesPositions[i].Y);
-                this.chart1.Series[2].Points[i].MarkerSize = (int)ObstSize;
+                this.chart1.Series[2].Points[i].MarkerSize = (int)ObstSize*250;
             }
             Bitmap rotatedImage;
             if (step == 0)
