@@ -163,7 +163,7 @@ namespace AutoRobot
         }
 
         // MaxWheelAngleRad = 0.3
-        public Point2D MoveRobot(double ConsigneVitesse = 0.4, double MaxWheelAngleRad = 0.6)
+        public Point2D MoveRobot(double ConsigneVitesse = 0.4, double MaxWheelAngleRad = 0.6, double inputVolu1 = 2.8, double inputVolu2 = 2.8)
         {
             if (MinIdxTraj > Trajectory.Count - 5)
                 return new Point2D(0, 0);
@@ -215,7 +215,7 @@ namespace AutoRobot
                  //   Psi = 0.3;
             }
             double deltax = 0, deltay = 0, deltatheta = 0, deltav = 0, deltaFd = 0, delpsi = 0;
-            EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd);
+            EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, inputVolu1, inputVolu2);
 
            /* while (deltatheta > 2 * Math.PI)
                 deltatheta = deltatheta - 2 * Math.PI;
@@ -243,7 +243,7 @@ namespace AutoRobot
             return Position;
         }
 
-        private void EstimateNextState(double Speed, out double delx, out double dely, out double deltheta, out double delpsi, out double delv, out double delFd)
+        private void EstimateNextState(double Speed, out double delx, out double dely, out double deltheta, out double delpsi, out double delv, out double delFd, double u1 = 2.8, double u2 = 2.8)
         {
             double x = Position.X;
             double y = Position.Y;
@@ -300,9 +300,8 @@ namespace AutoRobot
             // Number of teeth on the gears connecting the motor
             double Nm = 10;
 
-            // Input voltage in [-5,5]Volts
-            double u1 = 2.8;
-            double u2 = 2.8;
+            // u1 and u2 are Input voltage in [-5,5]Volts
+            
             
              delx = (Math.Cos(theta) - ((b * Math.Tan(Psi)) / l)  * Math.Sin(theta)) * vu;
              dely = (Math.Sin(theta) + ((b * Math.Tan(Psi)) / l) * Math.Cos(theta)) * vu;
@@ -325,11 +324,11 @@ namespace AutoRobot
             return cumul;
         }
 
-        public List<Point2D> FindTrajectorySegment(double curvilinearAbsicca, out int idx)
+        public List<Point2D> FindTrajectorySegment(double curvilinearAbsicca, out int idx, int MaxLookingDistance = 20)
         {
             double minDist = 100000000;
             int minI = 0;
-            for (int i = this.MinIdxTraj; i < (int)Math.Min(Trajectory.Count-1, this.MinIdxTraj + 20); i++)
+            for (int i = this.MinIdxTraj; i < (int)Math.Min(Trajectory.Count-1, this.MinIdxTraj + MaxLookingDistance); i++)
             {
                 Point2D P1 = Trajectory[i];
                 Point2D P2 = Trajectory[i + 1];
@@ -458,11 +457,11 @@ namespace AutoRobot
             return futurTrajectory;
         }
 
-        public bool IsObstacleInTrajectory(List<Point2D> ObstaclesPos)
+        public bool IsObstacleInTrajectory(List<Point2D> ObstaclesPos, double AnticipationDistance = 20)
         {
             for (int obsId = 0; obsId < ObstaclesPos.Count; obsId++)
             {
-                List<Point2D> FutureRealTrajectory = GetEstimatedFuturTrajectory(3);
+                List<Point2D> FutureRealTrajectory = GetEstimatedFuturTrajectory(AnticipationDistance);
                 List<List<Point2D>> Corridor = GetVehicleCorridor(FutureRealTrajectory);
                 for (int i = 0; i < Corridor.Count; i++)
                 {
@@ -552,8 +551,8 @@ namespace AutoRobot
                 }
             }
 
-            int LookForward = 10;
-            for (int i = MinIdxTraj + LookForward; i < (int)(Math.Min(Trajectory.Count,MinIdxTraj+LookForward+LookIdx)); i++)
+            int LookForward = 50;
+            for (int i = (int)(Math.Min(MinIdxTraj + LookForward, Trajectory.Count-5)); i < (int)(Math.Min(Trajectory.Count,MinIdxTraj+LookForward+LookIdx)); i++)
             {
                 Point2D trajPoint = Trajectory[i];
                 int Gridx = (int)trajPoint.X;
