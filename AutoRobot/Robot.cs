@@ -32,6 +32,10 @@ namespace AutoRobot
 
         public double VehicleMass { get; set; }
 
+        public double InputVoltage1 { get; set; }
+
+        public double InputVoltage2 { get; set; }
+
         // DrivingForce
         public double Fd { get; set; }
 
@@ -42,11 +46,13 @@ namespace AutoRobot
             this.VehicleLength = 1.5;
             this.VehicleWidth = 1.25;
             this.VehicleHeight = 0.2;
-            this.VehicleMass = 3000;
+            this.VehicleMass = 5000;
             this.Speed = 0.1;
             this.Bearing = initialBearing;
             this.UpdateAxlesPositions();
             this.MinIdxTraj = 0;
+            this.InputVoltage1 = 0;
+            this.InputVoltage2 = 2.8;
         }
 
         public Point2D MoveRobot(Point2D newPosition)
@@ -163,8 +169,14 @@ namespace AutoRobot
         }
 
         // MaxWheelAngleRad = 0.3
-        public Point2D MoveRobot(double ConsigneVitesse = 0.4, double MaxWheelAngleRad = 0.6, double inputVolu1 = 2.8, double inputVolu2 = 2.8)
+        public Point2D MoveRobot(out double RegulatedVoltageU1, double ConsigneVitesse = 0.4, double MaxWheelAngleRad = 0.6, double K = 0.1, double inputVolu2 = 2.8)
         {
+            double diff = ConsigneVitesse - Speed;
+            
+            
+            double gain = diff * K;
+            RegulatedVoltageU1 = this.InputVoltage1 + gain;
+
             if (MinIdxTraj > Trajectory.Count - 5)
                 return new Point2D(0, 0);
             int closestIdx;
@@ -215,7 +227,7 @@ namespace AutoRobot
                  //   Psi = 0.3;
             }
             double deltax = 0, deltay = 0, deltatheta = 0, deltav = 0, deltaFd = 0, delpsi = 0;
-            EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, inputVolu1, inputVolu2);
+            EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, InputVoltage1, inputVolu2);
 
            /* while (deltatheta > 2 * Math.PI)
                 deltatheta = deltatheta - 2 * Math.PI;
@@ -232,14 +244,19 @@ namespace AutoRobot
             Fd += deltaFd;
 
             //Bearing = (Bearing + Math.PI * 2) % (Math.PI * 2);
-            if (Speed > ConsigneVitesse)
+            /*if (Speed > ConsigneVitesse)
                 Speed = ConsigneVitesse;
             if (Fd > 50)
-                Fd = 50;
+                Fd = 50;*/
             //if (Speed > 3)
             //    Speed = 3;
             Point2D nextPosition = CalculateRobotNextPositionCartesian(Position, deltax, deltay);
             MoveRobot(nextPosition);
+            this.InputVoltage1 = RegulatedVoltageU1;
+            if (this.InputVoltage1 > 5)
+                this.InputVoltage1 = 5;
+            if (this.InputVoltage1 < -5)
+                this.InputVoltage1 = -5;
             return Position;
         }
 
@@ -250,6 +267,7 @@ namespace AutoRobot
             double theta = Bearing;
             double vu = Speed;
 
+            //u1 = 2.8;
             
             // Distance between the rear axle and the center of gravity
             double b = RearAxlePosition.Norm( Position);
@@ -261,7 +279,7 @@ namespace AutoRobot
             double m = VehicleMass;
 
             // Mass moment of inertia Note: Model of a cube
-            double J = 1 / 12 * m * (Math.Pow(VehicleLength, 2) + Math.Pow(VehicleWidth, 2));
+            double J = 1 / 12 * m * (Math.Pow(VehicleLength * 1000, 2) + Math.Pow(VehicleWidth * 1000, 2));
             // Setting basic Motor and load inertia in Nm/rad/s2
             //J = 0.00025;
 
@@ -289,8 +307,8 @@ namespace AutoRobot
             double Kb = 0.05;
 
             // Friction in Nm/rad/s
-            double Bm = 0.0001;
-
+            //double Bm = 0.0001; // Found on net
+            double Bm = 0.001;
             // Number of teeth on the gears connecting the axles
             double Nw = 10;
 
@@ -443,12 +461,14 @@ namespace AutoRobot
             estimatedRobot.Fd = this.Fd;
             estimatedRobot.Bearing = this.Bearing;
             estimatedRobot.MinIdxTraj = this.MinIdxTraj;
+            estimatedRobot.InputVoltage1 = this.InputVoltage1;
             futurTrajectory.Add(actualPosition);
             double distanceCumulee = 0;
 
             while (distanceCumulee < estimatedDistance && estimatedRobot.MinIdxTraj < estimatedRobot.Trajectory.Count - 5)
             {
-                estimatedRobot.MoveRobot();
+                double RegulatedVoltageU1;
+                estimatedRobot.MoveRobot(out RegulatedVoltageU1, 0.6, 0.6, this.InputVoltage1, this.InputVoltage2);
                 futurTrajectory.Add(estimatedRobot.Position);
                 distanceCumulee += futurTrajectory[futurTrajectory.Count -1].
                     Norm(futurTrajectory[futurTrajectory.Count - 2]);

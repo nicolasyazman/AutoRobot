@@ -24,6 +24,9 @@ namespace AutoRobotGUI
         List<Point2D> WayPoints;
         double ObstSize = 20;
         double u1 = 2.8, u2 = 2.8;
+        double ConsigneVitesse = 0.4;
+        double K = 0.1;
+
         private Bitmap RotateImage(Bitmap bmp, float angle)
         {
             Bitmap rotatedImage = new Bitmap(bmp.Width, bmp.Height);
@@ -42,10 +45,17 @@ namespace AutoRobotGUI
             return rotatedImage;
         }
 
+        
         int step = 0; 
         public void TimerEventProcessor(Object myObject,
                                             EventArgs myEventArgs)
         {
+            this.chart1.Series[2].Points.Clear();
+            for (int i = 0; i < ObstaclesPositions.Count; i++)
+            {
+                this.chart1.Series[2].Points.AddXY(ObstaclesPositions[i].X, ObstaclesPositions[i].Y);
+                this.chart1.Series[2].Points[i].MarkerSize = (int)ObstSize;
+            }
             Bitmap rotatedImage;
             if (step == 0)
             {
@@ -57,7 +67,11 @@ namespace AutoRobotGUI
                 pictureBox1.Image = rotatedImage;
                  
             }
-            Point2D position = robot.MoveRobot(0.4, 0.6, u1, u2);
+            double RegulatedVoltageU1;
+
+            // ----------------------------------------- MOVEROBOT ---------------------------------
+            Point2D position = robot.MoveRobot(out RegulatedVoltageU1, ConsigneVitesse, 0.6, K);
+            
             if (position.X == 0 && position.Y == 0)
                 return;
                 this.chart1.Series[1].Points.AddXY(position.X, position.Y);
@@ -84,11 +98,11 @@ namespace AutoRobotGUI
             step++;
             this.chart1.Series[0].Points.Clear();
             
-
+            
             int VehGridX, VehGridY;
             if (robot.IsObstacleInTrajectory(ObstaclesPositions, 10))
             {
-                int[,] Grid = robot.CreatePotentialField(ObstaclesPositions, out VehGridX, out VehGridY, 100, 100, ObstSize, 100);
+                int[,] Grid = robot.CreatePotentialField(ObstaclesPositions, out VehGridX, out VehGridY, 100, 100, ObstSize / 2, 100);
                 List<Point2D> positions = robot.FindShortestPath(Grid, 100, 100, VehGridX, VehGridY);
                 if (positions != null)
                 {
@@ -118,20 +132,18 @@ namespace AutoRobotGUI
                 {
                         if (robot.Speed > 0)
                         {
-                            // set u1 and u2 in negative
-                            
-                            u1 = -5;
-                            u2 = -5;
-                          
+                            ConsigneVitesse = 0;
+                            K = 100;
                         }
                         else
                         {
                         // set u1 and u2 to zero
-
+                        
                             robot.Fd = 0;
                         robot.Speed = 0;
                             u2 = 0;
                             u1 = 0;
+                              //  ConsigneVitesse = 0;
                         }
                     
                 }
@@ -142,6 +154,7 @@ namespace AutoRobotGUI
             {
                 this.chart1.Series[0].Points.AddXY(robot.Trajectory[i].X, robot.Trajectory[i].Y);
             }
+            
         }
 
         public void ResizeEvent(Object myObject,
@@ -156,7 +169,7 @@ namespace AutoRobotGUI
             
             InitializeComponent();
             WindowState = FormWindowState.Maximized;
-
+            
             Random rand;
             double x, y;
 
@@ -219,10 +232,10 @@ namespace AutoRobotGUI
             ratioY = (this.Height + 20) / (maxY - minY);
             pictureBox1.Location = new Point((int)(x * ratioX), (int)(y * ratioY));
 
-            this.chart1.ChartAreas[0].AxisX.Maximum = maxX + 5;
-            this.chart1.ChartAreas[0].AxisX.Minimum = minX - 5;
-            this.chart1.ChartAreas[0].AxisY.Maximum = maxY + 5;
-            this.chart1.ChartAreas[0].AxisY.Minimum = minY - 5;
+            this.chart1.ChartAreas[0].AxisX.Maximum = maxX;
+            this.chart1.ChartAreas[0].AxisX.Minimum = minX;
+            this.chart1.ChartAreas[0].AxisY.Maximum = maxY;
+            this.chart1.ChartAreas[0].AxisY.Minimum = minY;
 
             this.Resize += ResizeEvent; 
             List<Point2D> trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(WayPoints, 0.2);
@@ -249,20 +262,19 @@ namespace AutoRobotGUI
             myTimer.Interval = 50;
             myTimer.Start();
             pictureBox1.Visible = false;
-            double ObstSize = 6;
+            double ObstSize = 1;
             ObstaclesPositions = new List<Point2D>();
-            ObstaclesPositions.Add(WayPoints[2]);
-            for (int i = 0; i < ObstaclesPositions.Count; i++)
-            {
-                this.chart1.Series[2].Points.AddXY(ObstaclesPositions[i].X, ObstaclesPositions[i].Y);
-                this.chart1.Series[2].Points[0].MarkerSize = (int)ObstSize*50;
-            }
+            ObstaclesPositions.Add(WayPoints[1]);
+            ObstaclesPositions.Add(new Point2D(WayPoints[1].X,6.25));
+
             // myTimer.Stop();
         }
 
         private void chart1_Click(object sender, EventArgs e)
         {
-
+            double XChart = chart1.ChartAreas[0].AxisX.PixelPositionToValue(MousePosition.X);
+            double YChart = chart1.ChartAreas[0].AxisY.PixelPositionToValue(MousePosition.Y);
+            this.ObstaclesPositions.Add(new Point2D(XChart, YChart));
         }
     }
 }
