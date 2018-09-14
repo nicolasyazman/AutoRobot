@@ -102,7 +102,7 @@ namespace AutoRobotGUI
             int VehGridX, VehGridY;
             if (robot.IsObstacleInTrajectory(ObstaclesPositions, 10))
             {
-                int[,] Grid = robot.CreatePotentialField(ObstaclesPositions, out VehGridX, out VehGridY, 100, 100, ObstSize / 2, 100);
+                int[,] Grid = robot.CreatePotentialField(ObstaclesPositions, out VehGridX, out VehGridY, 100, 100, ObstSize, 100);
                 List<Point2D> positions = robot.FindShortestPath(Grid, 100, 100, VehGridX, VehGridY);
                 if (positions != null)
                 {
@@ -111,7 +111,8 @@ namespace AutoRobotGUI
                         int startIdx, endIdx;
                         Robot dummyRobot = new Robot(robot.Position, robot.Bearing);
                         dummyRobot.Trajectory = new List<Point2D>(robot.Trajectory);
-                        dummyRobot.MinIdxTraj = dummyRobot.MinIdxTraj;
+                        dummyRobot.MinIdxTraj = robot.MinIdxTraj;
+                        dummyRobot.Position = robot.Position;
                         dummyRobot.FindTrajectorySegment(0, out startIdx);
                         dummyRobot.Position = positions[positions.Count - 1];
                         dummyRobot.FindTrajectorySegment(0, out endIdx, dummyRobot.Trajectory.Count);
@@ -263,10 +264,9 @@ namespace AutoRobotGUI
             myTimer.Interval = 50;
             myTimer.Start();
             pictureBox1.Visible = false;
-            double ObstSize = 1;
             ObstaclesPositions = new List<Point2D>();
             ObstaclesPositions.Add(WayPoints[1]);
-            ObstaclesPositions.Add(new Point2D(WayPoints[1].X,6.25));
+            //ObstaclesPositions.Add(new Point2D(WayPoints[1].X,6.25));
 
 
             // myTimer.Stop();
