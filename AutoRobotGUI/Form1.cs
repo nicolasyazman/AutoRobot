@@ -22,7 +22,7 @@ namespace AutoRobotGUI
         double ratioY;
         List<Point2D> ObstaclesPositions;
         List<Point2D> WayPoints;
-        double ObstSize = 1;
+        double ObstSize = 2.0;
         double u1 = 2.8, u2 = 2.8;
         double ConsigneVitesse = 0.4;
         double K = 0.1;
@@ -55,6 +55,7 @@ namespace AutoRobotGUI
             {
                 this.chart1.Series[2].Points.AddXY(ObstaclesPositions[i].X, ObstaclesPositions[i].Y);
                 this.chart1.Series[2].Points[i].MarkerSize = (int)ObstSize*250;
+                this.chart1.Series[2].Points[i].MarkerStyle = System.Windows.Forms.DataVisualization.Charting.MarkerStyle.Circle;
             }
             Bitmap rotatedImage;
             if (step == 0)
@@ -102,8 +103,8 @@ namespace AutoRobotGUI
             int VehGridX, VehGridY;
             if (robot.IsObstacleInTrajectory(ObstaclesPositions, 10))
             {
-                int[,] Grid = robot.CreatePotentialField(ObstaclesPositions, out VehGridX, out VehGridY, 100, 100, ObstSize, 100);
-                List<Point2D> positions = robot.FindShortestPath(Grid, 100, 100, VehGridX, VehGridY);
+                int[,] Grid = robot.CreatePotentialField(ObstaclesPositions, ObstSize, out VehGridX, out VehGridY, 50, 50, ObstSize, 100);
+                List<Point2D> positions = robot.FindShortestPath(Grid, 50, 50, VehGridX, VehGridY);
                 if (positions != null)
                 {
                     if (positions.Count != 0) // Found a trajectory
@@ -133,21 +134,26 @@ namespace AutoRobotGUI
                 {
                         if (robot.Speed > 0)
                         {
+                            // Speed we want to reach
                             ConsigneVitesse = 0;
-                            K = 100;
+
+                            // How strongly we want to brake [0,+Inf]
+                            K = 10;
                         }
                         else
                         {
-                        // set u1 and u2 to zero
-                        
-                            robot.Fd = 0;
-                        robot.Speed = 0;
-                            u2 = 0;
-                            u1 = 0;
-                              //  ConsigneVitesse = 0;
+                            K = 0;
+                            robot.InputVoltage1 = 0;
+
+                            // Speed cannot be negative
+                            robot.Speed = 0; 
                         }
                     
                 }
+            }
+            else
+            {
+                int j = 2;
             }
 
             this.chart1.Series[0].Points.Clear();
@@ -265,6 +271,7 @@ namespace AutoRobotGUI
             myTimer.Start();
             pictureBox1.Visible = false;
             ObstaclesPositions = new List<Point2D>();
+            ObstaclesPositions.Add(WayPoints[2]);
             ObstaclesPositions.Add(WayPoints[1]);
             //ObstaclesPositions.Add(new Point2D(WayPoints[1].X,6.25));
 

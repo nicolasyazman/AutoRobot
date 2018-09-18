@@ -227,29 +227,15 @@ namespace AutoRobot
                  //   Psi = 0.3;
             }
             double deltax = 0, deltay = 0, deltatheta = 0, deltav = 0, deltaFd = 0, delpsi = 0;
-            EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, InputVoltage1, inputVolu2);
-
-           /* while (deltatheta > 2 * Math.PI)
-                deltatheta = deltatheta - 2 * Math.PI;
-            while (deltatheta < 0)
-                deltatheta += 2 * Math.PI;*/
+            // EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, InputVoltage1, inputVolu2);
+            EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, RegulatedVoltageU1, inputVolu2);
+            
             Bearing += deltatheta;
 
-           // while (Bearing > 2 * Math.PI)
-           //     Bearing = Bearing - 2 * Math.PI;
-          //  while (Bearing < 0)
-          //      Bearing = Bearing + 2 * Math.PI;
             Psi += delpsi;
             Speed += deltav;
             Fd += deltaFd;
-
-            //Bearing = (Bearing + Math.PI * 2) % (Math.PI * 2);
-            /*if (Speed > ConsigneVitesse)
-                Speed = ConsigneVitesse;
-            if (Fd > 50)
-                Fd = 50;*/
-            //if (Speed > 3)
-            //    Speed = 3;
+            
             Point2D nextPosition = CalculateRobotNextPositionCartesian(Position, deltax, deltay);
             MoveRobot(nextPosition);
             this.InputVoltage1 = RegulatedVoltageU1;
@@ -458,17 +444,17 @@ namespace AutoRobot
             Robot estimatedRobot   = new Robot(actualPosition);
             estimatedRobot.Trajectory = this.Trajectory;
             estimatedRobot.Speed = this.Speed;
-            estimatedRobot.Fd = this.Fd;
+            estimatedRobot.Fd = 10;
             estimatedRobot.Bearing = this.Bearing;
             estimatedRobot.MinIdxTraj = this.MinIdxTraj;
-            estimatedRobot.InputVoltage1 = this.InputVoltage1;
+            estimatedRobot.InputVoltage1 = 2.8;
             futurTrajectory.Add(actualPosition);
             double distanceCumulee = 0;
 
             while (distanceCumulee < estimatedDistance && estimatedRobot.MinIdxTraj < estimatedRobot.Trajectory.Count - 5)
             {
                 double RegulatedVoltageU1;
-                estimatedRobot.MoveRobot(out RegulatedVoltageU1, 0.6, 0.6, this.InputVoltage1, this.InputVoltage2);
+                estimatedRobot.MoveRobot(out RegulatedVoltageU1, 0.6, 0.6, 1, this.InputVoltage2);
                 futurTrajectory.Add(estimatedRobot.Position);
                 distanceCumulee += futurTrajectory[futurTrajectory.Count -1].
                     Norm(futurTrajectory[futurTrajectory.Count - 2]);
@@ -555,40 +541,57 @@ namespace AutoRobot
         }
 
         
-        public int[,] CreatePotentialField(List<Point2D> ObstaclesGC, out int VehGridX, out int VehGridY, double GridWidth = 100, double GridHeight = 100, double SafetyDistance = 10, double LookIdx = 10)
+        public int[,] CreatePotentialField(List<Point2D> ObstaclesGC, double ObstacleSize, out int VehGridX, out int VehGridY, double GridWidth = 100, double GridHeight = 100, double SafetyDistance = 10, double LookIdx = 10)
         {
-            double GridResolution = 1;
+            double GridResolution = 0.1;
 
             int NumberOfCellsPerRow = (int)Math.Ceiling(GridWidth / GridResolution);
             int NumberOfRows = (int)Math.Ceiling(GridHeight / GridResolution);
 
             int[,] Grid = new int[NumberOfRows, NumberOfCellsPerRow]; 
-            for (int y = 0; y < NumberOfRows; y++)
+        /*    for (int y = 0; y < NumberOfRows; y++)
             {
                 for (int x = 0; x < NumberOfCellsPerRow; x++)
                 {
                     Grid[y, x] = 0;
                 }
             }
+            */
+            double GridStartX = NumberOfCellsPerRow / 2;
+            double GridStartY = NumberOfRows / 2;
 
-            int LookForward = 50;
-            for (int i = (int)(Math.Min(MinIdxTraj + LookForward, Trajectory.Count-5)); i < (int)(Math.Min(Trajectory.Count,MinIdxTraj+LookForward+LookIdx)); i++)
+            double LookForwardDistanceMeters = 5;
+            int LookForward = 10;
+            double CurvAbsCumul = 0;
+
+            while (CurvAbsCumul < LookForwardDistanceMeters && MinIdxTraj + LookForward < Trajectory.Count - 1)
+            {
+                CurvAbsCumul += Trajectory[MinIdxTraj + LookForward].Norm(Trajectory[MinIdxTraj + LookForward + 1]);
+                LookForward++;
+            }
+            int minidx;
+            FindTrajectorySegment(0, out minidx, 100000);
+            for (int i = (int)(Math.Min(minidx + LookForward, Trajectory.Count)); i < (int)(Math.Min(Trajectory.Count,MinIdxTraj+LookForward+LookIdx)); i++)
             {
                 Point2D trajPoint = Trajectory[i];
-                int Gridx = (int)trajPoint.X;
-                int Gridy = (int)trajPoint.Y;
-                if (Gridx >= 0 && Gridx < GridWidth && Gridy >= 0 && Gridy < GridHeight)
+                int Gridx = (int)(trajPoint.X / GridResolution + GridStartX);
+                int Gridy = (int)(trajPoint.Y / GridResolution + GridStartY);
+                if (Gridx >= 0 && Gridx < NumberOfCellsPerRow && Gridy >= 0 && Gridy < NumberOfRows)
                     Grid[Gridy, Gridx] = -3;
             }
             for (int i = 0; i < ObstaclesGC.Count; i++)
             {
-                double obstacleX = ObstaclesGC[i].X;
-                double obstacleY = ObstaclesGC[i].Y;
-                for (int y = 0; y < NumberOfRows; y++)
+                double obstacleX = ObstaclesGC[i].X / GridResolution + GridStartX;
+                double obstacleY = ObstaclesGC[i].Y / GridResolution + GridStartY;
+                int StartX = Math.Max(0,(int)(obstacleX - (ObstacleSize / GridResolution)));
+                int EndX = Math.Min(NumberOfCellsPerRow - 1, (int)(obstacleX + (ObstacleSize / GridResolution)));
+                int StartY = Math.Max(0, (int)(obstacleY - ObstacleSize / GridResolution));
+                int EndY = Math.Min(NumberOfRows - 1,(int)(obstacleY + ObstacleSize / GridResolution));
+                for (int y = StartY; y < EndY; y++)
                 {
-                    for (int x = 0; x < NumberOfCellsPerRow; x++)
+                    for (int x = StartX; x < EndX; x++)
                     {
-                        if (new Point2D(x,y).Norm(new Point2D(obstacleX,obstacleY)) < SafetyDistance / 6)
+                        if (new Point2D(x,y).Norm(new Point2D(obstacleX,obstacleY)) < (SafetyDistance / GridResolution))
                         {
                             Grid[y, x] = -1;
                         }
@@ -596,8 +599,8 @@ namespace AutoRobot
                 }
             }
 
-            VehGridX = (int)Math.Floor(Position.X);
-            VehGridY = (int)Math.Floor(Position.Y);
+            VehGridX = (int)Math.Floor(Position.X / GridResolution + GridStartX);
+            VehGridY = (int)Math.Floor(Position.Y / GridResolution + GridStartY);
             //Grid[VehGridY, VehGridX] = 2;
             return Grid;
         }
@@ -605,6 +608,13 @@ namespace AutoRobot
 
         public List<Point2D> FindShortestPath(int[,] Grid, int GridWidth, int GridHeight, int StartX, int StartY)
         {
+            double GridResolution = 0.1;
+            GridWidth = (int)(GridWidth / GridResolution);
+            GridHeight = (int)(GridHeight / GridResolution);
+
+
+            double GridStartX = GridWidth / 2;
+            double GridStartY = GridHeight / 2;
             Queue<Tuple<int, int, int>> queue = new Queue<Tuple<int, int, int>>();
 
             queue.Enqueue(new Tuple<int, int, int>(StartX, StartY, 0));
@@ -622,6 +632,7 @@ namespace AutoRobot
                     MaximumVal = Val;
                 if (Val > -1) // Destination not found
                 {
+                    // West
                     if (X - 1 >= 0 && Grid[Y, X - 1] != -1)
                     {
                         if (Grid[Y, X - 1] == 0)
@@ -635,6 +646,20 @@ namespace AutoRobot
                         }
                         
                     }
+                    // North West
+                    if (X - 1 >= 0 && Y - 1 >= 0 && Grid[Y - 1, X - 1] != -1)
+                    {
+                        if (Grid[Y - 1, X - 1] == 0)
+                        {
+                            Grid[Y - 1, X - 1] = Val + 1;
+                            queue.Enqueue(new Tuple<int, int, int>(X - 1, Y - 1, Val + 1));
+                        }
+                        else if (Grid[Y - 1, X - 1] < -1)
+                        {
+                            queue.Enqueue(new Tuple<int, int, int>(X - 1, Y - 1, -2));
+                        }
+                    }
+                    // East
                     if (X + 1 < GridWidth && Grid[Y, X + 1] != -1)
                     {
                         if (Grid[Y, X + 1] == 0)
@@ -647,6 +672,21 @@ namespace AutoRobot
                             queue.Enqueue(new Tuple<int, int, int>(X + 1, Y, -2));
                         }
                     }
+                    // North East
+                    if (X + 1 < GridWidth  && Y - 1 >= 0 && Grid[Y - 1, X + 1] != -1)
+                    {
+                        if (Grid[Y - 1, X + 1] == 0)
+                        {
+                            Grid[Y - 1, X + 1] = Val + 1;
+                            queue.Enqueue(new Tuple<int, int, int>(X + 1, Y - 1, Val + 1));
+                        }
+                        else if (Grid[Y - 1, X + 1] < -1)
+                        {
+                            queue.Enqueue(new Tuple<int, int, int>(X + 1, Y - 1, -2));
+                        }
+                    }
+
+                    // North
                     if (Y - 1 >= 0 && Grid[Y-1, X] != -1)
                     {
                         if (Grid[Y - 1, X] == 0)
@@ -659,6 +699,8 @@ namespace AutoRobot
                             queue.Enqueue(new Tuple<int, int, int>(X, Y - 1, -2));
                         }
                     }
+
+                    // South
                     if (Y + 1 < GridHeight && Grid[Y+1, X] != -1)
                     {
                         if (Grid[Y + 1, X] == 0)
@@ -668,7 +710,34 @@ namespace AutoRobot
                         }
                         else if (Grid[Y+1,X] < -1)
                         {
-                            queue.Enqueue(new Tuple<int, int, int>(X, Y, -2));
+                            queue.Enqueue(new Tuple<int, int, int>(X, Y + 1, -2));
+                        }
+                    }
+                    
+                    // South West
+                    if (Y + 1 < GridHeight && X - 1 >= 0 && Grid[Y + 1, X - 1] != -1)
+                    {
+                        if (Grid[Y + 1, X - 1] == 0)
+                        {
+                            Grid[Y + 1, X - 1] = Val + 1;
+                            queue.Enqueue(new Tuple<int, int, int>(X - 1, Y + 1, Val + 1));
+                        }
+                        else if (Grid[Y + 1, X - 1] < -1)
+                        {
+                            queue.Enqueue(new Tuple<int, int, int>(X - 1, Y + 1, -2));
+                        }
+                    }
+                    // South East
+                    if (Y + 1 < GridHeight && X + 1 < GridWidth && Grid[Y + 1, X + 1] != -1)
+                    {
+                        if (Grid[Y + 1, X + 1] == 0)
+                        {
+                            Grid[Y + 1, X + 1] = Val + 1;
+                            queue.Enqueue(new Tuple<int, int, int>(X + 1, Y + 1, Val + 1));
+                        }
+                        else if (Grid[Y + 1, X + 1] < -1)
+                        {
+                            queue.Enqueue(new Tuple<int, int, int>(X + 1, Y + 1, -2));
                         }
                     }
                 }
@@ -690,31 +759,68 @@ namespace AutoRobot
             // Now do the inverse way
             while (ValShouldBe > 0)
             {
+                // West
                 if (X - 1 >= 0 && Grid[Y, X - 1] == ValShouldBe)
                 {
                     X = X - 1;
-                    ShortestPath.Add(new Point2D(X, Y));
+                    ShortestPath.Add(new Point2D((X - GridStartX )* GridResolution , (Y - GridStartY) * GridResolution));
                 }
+                // East
                 else if (X + 1 < GridWidth && Grid[Y, X + 1] == ValShouldBe)
                 {
                     X = X + 1;
-                    ShortestPath.Add(new Point2D(X, Y));
+                    ShortestPath.Add(new Point2D((X - GridStartX) * GridResolution, (Y - GridStartY) * GridResolution));
                 }
+                // North
                 else if (Y - 1 >= 0 && Grid[Y - 1, X] == ValShouldBe)
                 {
 
                     Y = Y - 1;
-                    ShortestPath.Add(new Point2D(X, Y));
+                    ShortestPath.Add(new Point2D((X - GridStartX) * GridResolution, (Y - GridStartY) * GridResolution));
                 }
+                // South
                 else if (Y + 1 < GridHeight && Grid[Y + 1, X] == ValShouldBe)
                 {
                     Y = Y + 1;
-                    ShortestPath.Add(new Point2D(X, Y));
+                    ShortestPath.Add(new Point2D((X - GridStartX) * GridResolution, (Y - GridStartY) * GridResolution));
+                }
+                // South West
+                else if (Y + 1 < GridHeight && X - 1 >= 0 && Grid[Y + 1, X - 1] == ValShouldBe)
+                {
+                    Y = Y + 1;
+                    X = X - 1;
+                    ShortestPath.Add(new Point2D((X - GridStartX) * GridResolution, (Y - GridStartY) * GridResolution));
+
+                }
+                // South East
+                else if (Y + 1 < GridHeight && X + 1 < GridWidth && Grid[Y + 1, X + 1] == ValShouldBe)
+                {
+                    Y = Y + 1;
+                    X = X + 1;
+                    ShortestPath.Add(new Point2D((X - GridStartX) * GridResolution, (Y - GridStartY) * GridResolution));
+                }
+
+                // North West
+                else if (Y - 1 >= 0 && X - 1 >= 0 && Grid[Y - 1, X - 1] == ValShouldBe)
+                {
+
+                    Y = Y - 1;
+                    X = X - 1;
+                    ShortestPath.Add(new Point2D((X - GridStartX) * GridResolution, (Y - GridStartY) * GridResolution));
+                }
+
+                // North East
+                else if (Y - 1 >= 0 && X + 1 >= 0 && Grid[Y - 1, X + 1] == ValShouldBe)
+                {
+
+                    Y = Y - 1;
+                    X = X + 1;
+                    ShortestPath.Add(new Point2D((X - GridStartX) * GridResolution, (Y - GridStartY) * GridResolution));
                 }
                 ValShouldBe--;
             }
             ShortestPath.Reverse();
-
+            
             return ShortestPath;
         }
     }
