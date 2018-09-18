@@ -54,7 +54,7 @@ namespace AutoRobotGUI
             for (int i = 0; i < ObstaclesPositions.Count; i++)
             {
                 this.chart1.Series[2].Points.AddXY(ObstaclesPositions[i].X, ObstaclesPositions[i].Y);
-                this.chart1.Series[2].Points[i].MarkerSize = (int)ObstSize*250;
+                this.chart1.Series[2].Points[i].MarkerSize = (int)ObstSize*30;
                 this.chart1.Series[2].Points[i].MarkerStyle = System.Windows.Forms.DataVisualization.Charting.MarkerStyle.Circle;
             }
             Bitmap rotatedImage;
@@ -186,7 +186,7 @@ namespace AutoRobotGUI
 
 
 
-            int numberWayPoints = 3;//rand.Next(15,20);
+            int numberWayPoints = rand.Next(6,6);
 
             double maxX = -1000000;
             double maxY = -1000000;
