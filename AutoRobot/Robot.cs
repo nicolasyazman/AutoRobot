@@ -52,7 +52,7 @@ namespace AutoRobot
             this.UpdateAxlesPositions();
             this.MinIdxTraj = 0;
             this.InputVoltage1 = 0;
-            this.InputVoltage2 = 2.8;
+            this.InputVoltage2 = 0;
         }
 
         public Point2D MoveRobot(Point2D newPosition)
@@ -169,13 +169,15 @@ namespace AutoRobot
         }
 
         // MaxWheelAngleRad = 0.3
-        public Point2D MoveRobot(out double RegulatedVoltageU1, double ConsigneVitesse = 0.4, double MaxWheelAngleRad = 0.6, double K = 0.1, double inputVolu2 = 2.8)
+        public Point2D MoveRobot(out double RegulatedVoltageU1, out double RegulatedVoltageU2, double ConsigneVitesse = 0.4, double MaxWheelAngleRad = 0.6, double K = 0.1, double inputVolu2 = 2.8)
         {
             double diff = ConsigneVitesse - Speed;
-            
-            
+            double PsiConsigne = 0;
+
+            K /= (6 + Math.Abs(this.InputVoltage2));
             double gain = diff * K;
             RegulatedVoltageU1 = this.InputVoltage1 + gain;
+            RegulatedVoltageU2 = this.InputVoltage2;
 
             if (MinIdxTraj > Trajectory.Count - 5)
                 return new Point2D(0, 0);
@@ -194,12 +196,12 @@ namespace AutoRobot
 
             if (distanceToTrajSegment < distanceTol)
             {
-                Psi = Delta_Bearing(Bearing * 180 / Math.PI, angle * 180 / Math.PI);
-                Psi *= Math.PI / 180;
-                if (Psi < -MaxWheelAngleRad)
-                    Psi = -MaxWheelAngleRad;
-                if (Psi > MaxWheelAngleRad)
-                    Psi = MaxWheelAngleRad;
+                PsiConsigne = Delta_Bearing(Bearing * 180 / Math.PI, angle * 180 / Math.PI);
+                PsiConsigne *= Math.PI / 180;
+         /*       if (PsiConsigne < -MaxWheelAngleRad)
+                    PsiConsigne = -MaxWheelAngleRad;
+                if (PsiConsigne > MaxWheelAngleRad)
+                    PsiConsigne = MaxWheelAngleRad;*/
                 // Psi = (angle - Bearing);
             }
             else
@@ -209,6 +211,7 @@ namespace AutoRobot
                 double maxDeltaIdx = 20;
                 double firstIdx = closestIdx;
                 double minAngle = 100000;
+                closestIdx = 0;
                 while (closestIdx - firstIdx < maxDeltaIdx && closestIdx < Trajectory.Count) //&& (correctionAngle > correctionAngleTol || 2 * Math.PI - correctionAngle > correctionAngleTol))
                 {
                     correctionAngle = Position.AbsoluteBearing(Trajectory[closestIdx]);
@@ -216,19 +219,34 @@ namespace AutoRobot
                         minAngle = (correctionAngle + Math.PI*2) % (2*Math.PI);
                     closestIdx++;
                 }
-                Psi = Delta_Bearing(Bearing * 180 / Math.PI, minAngle * 180 / Math.PI);
-                Psi *= Math.PI / 180;
-                if (Psi < -MaxWheelAngleRad)
-                   Psi = -MaxWheelAngleRad;
-                if (Psi > MaxWheelAngleRad)
-                    Psi = MaxWheelAngleRad;
-                   
+                PsiConsigne = Delta_Bearing(Bearing * 180 / Math.PI, minAngle * 180 / Math.PI);
+                PsiConsigne *= Math.PI / 180;
+
+               
+
+                
+         /*       if (PsiConsigne < -MaxWheelAngleRad)
+                    PsiConsigne = -MaxWheelAngleRad;
+                if (PsiConsigne > MaxWheelAngleRad)
+                    PsiConsigne = MaxWheelAngleRad;
+                   */
                 //if (Psi > 0.3)
                  //   Psi = 0.3;
             }
+
+            double diffPsi = Delta_Bearing(Psi * 180 / Math.PI, PsiConsigne * 180 / Math.PI) * Math.PI / 180;
+            
+            
+            double gainPsi = diffPsi * 1.2;
+
+            RegulatedVoltageU2 = RegulatedVoltageU2 + gainPsi;
+            if (RegulatedVoltageU2 > 5)
+                RegulatedVoltageU2 = 5;
+            if (RegulatedVoltageU2 < -5)
+                RegulatedVoltageU2 = -5;
             double deltax = 0, deltay = 0, deltatheta = 0, deltav = 0, deltaFd = 0, delpsi = 0;
             // EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, InputVoltage1, inputVolu2);
-            EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, RegulatedVoltageU1, inputVolu2);
+            EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, RegulatedVoltageU1, RegulatedVoltageU2);
             
             Bearing += deltatheta;
 
@@ -243,6 +261,14 @@ namespace AutoRobot
                 this.InputVoltage1 = 5;
             if (this.InputVoltage1 < -5)
                 this.InputVoltage1 = -5;
+
+            this.InputVoltage2 = RegulatedVoltageU2;
+            if (this.InputVoltage2 > 5)
+                this.InputVoltage2 = 5;
+            if (this.InputVoltage2 < -5)
+                this.InputVoltage2 = -5;
+
+            Bearing = (Bearing + Math.PI * 2) % (Math.PI * 2);
             return Position;
         }
 
@@ -282,8 +308,8 @@ namespace AutoRobot
             double Tau_s = La / Ra;
 
             // ????
-            double cs = 0;
-
+            // double cs = 0.6;
+            double cs = 0.1;
             // Motor constant
             double MotorTorque = 10;
             double ResistivePowerLoss = 3;
@@ -310,10 +336,25 @@ namespace AutoRobot
              delx = (Math.Cos(theta) - ((b * Math.Tan(Psi)) / l)  * Math.Sin(theta)) * vu;
              dely = (Math.Sin(theta) + ((b * Math.Tan(Psi)) / l) * Math.Cos(theta)) * vu;
              deltheta = (Math.Tan(Psi) / l) * vu;
-             delpsi = 1 / Tau_s * Psi + cs * u2;
-             delv = vu * (Math.Pow(b, 2) * m + J) * Math.Tan(Psi) / gamma * delpsi + Math.Pow(l, 2) * Math.Pow(Math.Cos(Psi), 2) / gamma * Fd;
+             delpsi = 1 / Tau_s * Psi + cs * this.InputVoltage2;
+
+
+            double MaxWheelAngleRad = 0.6;
+            if (Psi + delpsi < -MaxWheelAngleRad)
+            {
+                delpsi = 0;
+                Psi = -MaxWheelAngleRad;
+            }
+            if (Psi + delpsi > MaxWheelAngleRad)
+            {
+                delpsi = 0;
+                Psi = MaxWheelAngleRad;
+            }
+
+            delv = vu * (Math.Pow(b, 2) * m + J) * Math.Tan(Psi) / gamma * delpsi + Math.Pow(l, 2) * Math.Pow(Math.Cos(Psi), 2) / gamma * Fd;
              delFd = -Ra / La * Fd - ((Km * Kb + Ra * Bm) * Math.Pow(Nw,2)) / (La*Math.Pow(Nm,2)*Math.Pow(Rw,2)) * vu + (Km * Nw / (La * Nm * Rw) * u1);
 
+ 
         }
 
         public double CurvilinearAbscissaCumul(int endIndex)
@@ -454,7 +495,8 @@ namespace AutoRobot
             while (distanceCumulee < estimatedDistance && estimatedRobot.MinIdxTraj < estimatedRobot.Trajectory.Count - 5)
             {
                 double RegulatedVoltageU1;
-                estimatedRobot.MoveRobot(out RegulatedVoltageU1, 0.6, 0.6, 1, this.InputVoltage2);
+                double RegulatedVoltageU2;
+                estimatedRobot.MoveRobot(out RegulatedVoltageU1, out RegulatedVoltageU2, 0.6, 0.6, 1, this.InputVoltage2);
                 futurTrajectory.Add(estimatedRobot.Position);
                 distanceCumulee += futurTrajectory[futurTrajectory.Count -1].
                     Norm(futurTrajectory[futurTrajectory.Count - 2]);
@@ -616,7 +658,7 @@ namespace AutoRobot
             double GridStartX = GridWidth / 2;
             double GridStartY = GridHeight / 2;
             Queue<Tuple<int, int, int>> queue = new Queue<Tuple<int, int, int>>();
-
+          
             queue.Enqueue(new Tuple<int, int, int>(StartX, StartY, 0));
             int X = 0, Y = 0;
             int Val = 0;

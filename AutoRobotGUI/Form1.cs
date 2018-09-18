@@ -69,9 +69,9 @@ namespace AutoRobotGUI
                  
             }
             double RegulatedVoltageU1;
-
+            double RegulatedVoltageU2;
             // ----------------------------------------- MOVEROBOT ---------------------------------
-            Point2D position = robot.MoveRobot(out RegulatedVoltageU1, ConsigneVitesse, 0.6, K);
+            Point2D position = robot.MoveRobot(out RegulatedVoltageU1, out RegulatedVoltageU2, ConsigneVitesse, 0.6, K);
             
             if (position.X == 0 && position.Y == 0)
                 return;
