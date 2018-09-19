@@ -171,10 +171,11 @@ namespace AutoRobot
         // MaxWheelAngleRad = 0.3
         public Point2D MoveRobot(out double RegulatedVoltageU1, out double RegulatedVoltageU2, double ConsigneVitesse = 0.4, double MaxWheelAngleRad = 0.6, double K = 0.1, double inputVolu2 = 2.8)
         {
+            ConsigneVitesse /= (1 + Math.Abs(this.InputVoltage2));
+
             double diff = ConsigneVitesse - Speed;
             double PsiConsigne = 0;
 
-            K /= (6 + Math.Abs(this.InputVoltage2));
             double gain = diff * K;
             RegulatedVoltageU1 = this.InputVoltage1 + gain;
             RegulatedVoltageU2 = this.InputVoltage2;
