@@ -43,11 +43,11 @@ namespace AutoRobot
         public Robot(Point2D pos, double initialBearing = 0)
         {
             this.Position = pos;
-            this.VehicleLength = 1.5;
-            this.VehicleWidth = 1.25;
+            this.VehicleLength = 0.5;
+            this.VehicleWidth = 0.25;
             this.VehicleHeight = 0.2;
-            this.VehicleMass = 5000;
-            this.Speed = 0.1;
+            this.VehicleMass = 1.45;
+            this.Speed = 0.0;
             this.Bearing = initialBearing;
             this.UpdateAxlesPositions();
             this.MinIdxTraj = 0;
@@ -291,19 +291,23 @@ namespace AutoRobot
             double m = VehicleMass;
 
             // Mass moment of inertia Note: Model of a cube
-            double J = 1 / 12 * m * (Math.Pow(VehicleLength * 1000, 2) + Math.Pow(VehicleWidth * 1000, 2));
+            //  double J = 1 / 12 * m * (Math.Pow(VehicleLength, 2) + Math.Pow(VehicleWidth, 2));
+            double W = 0.1651;
+
+            double J = W * l * m;
+            double Jeq = Math.Pow(b, 2) * m + J;
             // Setting basic Motor and load inertia in Nm/rad/s2
             //J = 0.00025;
 
-            double gamma = Math.Pow(Math.Cos(Psi),2)*(Math.Pow(l,2)*m+(Math.Pow(b,2)*m+J)*Math.Pow(Math.Tan(Psi),2));
+            double gamma = Math.Pow(Math.Cos(Psi),2)*(Math.Pow(l,2)*m+(Math.Pow(b,2)*m+Jeq*Math.Pow(Math.Tan(Psi),2)));
 
             
             // Terminal resistance of DC Motor in Ohm 
-            double Ra = 0.5;
+            double Ra = 1.9;
 
             // Terminal inductance of DC Motor in milliHenries
-            double La = 1.5;
-
+            double La = 1.064e-4;
+            La = 0.5;
 
             double Tau_s = La / Ra;
 
@@ -315,20 +319,21 @@ namespace AutoRobot
             double ResistivePowerLoss = 3;
             double Km = MotorTorque / Math.Sqrt(ResistivePowerLoss);
 
+            Km = 6.7831e-3;
             // Also known as Kv, 
-            double Kb = 0.05;
+            double Kb = Km;
 
             // Friction in Nm/rad/s
             //double Bm = 0.0001; // Found on net
-            double Bm = 0.001;
+            double Bm = 3.397e-5;
             // Number of teeth on the gears connecting the axles
-            double Nw = 10;
+            double Nw = 81;
 
             // Radius of wheel
-            double Rw = 0.45;
+            double Rw = 31.75e-3;
 
             // Number of teeth on the gears connecting the motor
-            double Nm = 10;
+            double Nm = 21;
 
             // u1 and u2 are Input voltage in [-5,5]Volts
             
@@ -352,9 +357,14 @@ namespace AutoRobot
             }
 
             delv = vu * (Math.Pow(b, 2) * m + J) * Math.Tan(Psi) / gamma * delpsi + Math.Pow(l, 2) * Math.Pow(Math.Cos(Psi), 2) / gamma * Fd;
-             delFd = -Ra / La * Fd - ((Km * Kb + Ra * Bm) * Math.Pow(Nw,2)) / (La*Math.Pow(Nm,2)*Math.Pow(Rw,2)) * vu + (Km * Nw / (La * Nm * Rw) * u1);
+            delFd = -Ra / La * Fd - ((Km * Kb + Ra * Bm) * Math.Pow(Nw,2)) / (La*Math.Pow(Nm,2)*Math.Pow(Rw,2)) * vu + ((Km * Nw) / (La * Nm * Rw) * u1);
+            //delFd = Rw * Nm * La / Nw / Km * (this.InputVoltage1 + (Ra * Bm * Km * Kb) * Math.Pow(Nw, 2) / Math.Pow(Nm, 2) / Math.Pow(Rw, 2) * vu + Ra / La * Fd);
+            /*
+            double vv1 = - vu * Math.Pow(l,2)*
 
- 
+            double w1 = vv1 + d_eta;
+            delFd = Rw * Nm * La / Nw / Km * (w1 + (Ra * Bm * Km * Kb) * Math.Pow(Nw, 2) / Math.Pow(Nm, 2) / Math.Pow(Rw, 2) * vu + Ra / La * Fd);
+ */
         }
 
         public double CurvilinearAbscissaCumul(int endIndex)
