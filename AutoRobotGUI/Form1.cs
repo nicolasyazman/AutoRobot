@@ -26,10 +26,14 @@ namespace AutoRobotGUI
         double u1 = 2.8, u2 = 2.8;
         double ConsigneVitesse = 0.4;
         double K = 0.1;
+        double maxX, minX, maxY, minY;
+
+        Bitmap originalImage;
+        float totalAngle = (float)((0.6 + Math.PI / 2) * 180 / Math.PI);
 
         private Bitmap RotateImage(Bitmap bmp, float angle)
         {
-            Bitmap rotatedImage = new Bitmap(bmp.Width, bmp.Height);
+            Bitmap rotatedImage = new Bitmap(bmp.Width, bmp.Height, bmp.PixelFormat);
             using (Graphics g = Graphics.FromImage(rotatedImage))
             {
                 // Set the rotation point to the center in the matrix
@@ -50,11 +54,14 @@ namespace AutoRobotGUI
         public void TimerEventProcessor(Object myObject,
                                             EventArgs myEventArgs)
         {
+
+            ratioX = (1367) / (maxX - minX);
+            ratioY = (938) / (maxY - minY);
             this.chart1.Series[2].Points.Clear();
             for (int i = 0; i < ObstaclesPositions.Count; i++)
             {
                 this.chart1.Series[2].Points.AddXY(ObstaclesPositions[i].X, ObstaclesPositions[i].Y);
-                this.chart1.Series[2].Points[i].MarkerSize = (int)ObstSize*30;
+                this.chart1.Series[2].Points[i].MarkerSize = (int)(ObstSize*ratioX);
                 this.chart1.Series[2].Points[i].MarkerStyle = System.Windows.Forms.DataVisualization.Charting.MarkerStyle.Circle;
             }
             Bitmap rotatedImage;
@@ -64,7 +71,8 @@ namespace AutoRobotGUI
                 {
                     Thread.Sleep(50);
                 }
-                 rotatedImage = RotateImage(new Bitmap(pictureBox1.Image), (float)((0.6 + Math.PI/2)* 180 / Math.PI));
+                originalImage = new Bitmap(pictureBox1.Image);
+                 rotatedImage = RotateImage(new Bitmap(originalImage), totalAngle);
                 pictureBox1.Image = rotatedImage;
                  
             }
@@ -77,10 +85,10 @@ namespace AutoRobotGUI
                 return;
                 this.chart1.Series[1].Points.AddXY(position.X, position.Y);
 
-                    pictureBox1.Location = new Point((int)(position.X*ratioX), this.Height-(int)(position.Y*ratioY));
             float robotBearing = (float)(robot.Bearing * 180 / Math.PI);
-            
-             rotatedImage = RotateImage(new Bitmap(pictureBox1.Image), PreviousBearing - robotBearing);
+            float changeAngle = PreviousBearing -robotBearing;
+            totalAngle += changeAngle;
+             rotatedImage = RotateImage(new Bitmap(originalImage), totalAngle);
 
             PreviousBearing = robotBearing;
 
@@ -116,6 +124,7 @@ namespace AutoRobotGUI
                         dummyRobot.Position = robot.Position;
                         dummyRobot.FindTrajectorySegment(0, out startIdx);
                         dummyRobot.Position = positions[positions.Count - 1];
+                        dummyRobot.MinIdxTraj = startIdx;
                         dummyRobot.FindTrajectorySegment(0, out endIdx, dummyRobot.Trajectory.Count);
 
                         int numberToSuppress = endIdx - startIdx;
@@ -161,7 +170,10 @@ namespace AutoRobotGUI
             {
                 this.chart1.Series[0].Points.AddXY(robot.Trajectory[i].X, robot.Trajectory[i].Y);
             }
-            
+            int imageX = (int)((robot.Position.X - minX) * ratioX) + 200;
+            int imageY = this.Height - (int)((robot.Position.Y) * ratioY) - 290;
+            pictureBox1.Location = new Point(imageX, imageY);
+
         }
 
         public void ResizeEvent(Object myObject,
@@ -187,26 +199,29 @@ namespace AutoRobotGUI
 
 
             int numberWayPoints = rand.Next(6,6);
-
-            double maxX = -1000000;
-            double maxY = -1000000;
-            double minX = 100000000;
-            double minY = 100000000;
+            numberWayPoints = 5;
+            maxX = -1000000;
+            maxY = -1000000;
+            minX = 100000000;
+            minY = 100000000;
             WayPoints = new List<Point2D>();
             double distBetweenWayPoints = 10;
             //x = rand.NextDouble() * 10;
             //y = rand.NextDouble() * 10;
-            x = 5;
-            y = 5;
+
+            double startX = 5, startY = 5;
+            x = startX;
+            y = startY;
+
             Point2D wayPoint = new Point2D(x, y);
             WayPoints.Add(wayPoint);
             this.robot = new Robot(WayPoints[0], 0.6);
 
             pictureBox1.ImageLocation = "C:\\Users\\Nicolas\\Documents\\car-png-top-view-png-white-top-car-png-image-34867-587-resize.png";
-            pictureBox1.SizeMode = PictureBoxSizeMode.AutoSize;
             //pictureBox1.ImageLocation = "http://pluspng.com/img-png/car-png-top-view-png-white-top-car-png-image-34867-587.png";
+            pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox1.Visible = true;
 
-            
 
             wayPoint = robot.CalculateRobotNextPositionPolar(WayPoints[0], 0.6, distBetweenWayPoints);
             WayPoints.Add(wayPoint);
@@ -236,9 +251,9 @@ namespace AutoRobotGUI
             }
 
 
-            ratioX = (this.Width + 40) / (maxX - minX);
-            ratioY = (this.Height + 20) / (maxY - minY);
-            pictureBox1.Location = new Point((int)(x * ratioX), (int)(y * ratioY));
+            ratioX = (this.Width) / (maxX - minX);
+            ratioY = (this.Height) / (maxY - minY);
+
 
             this.chart1.ChartAreas[0].AxisX.Maximum = maxX;
             this.chart1.ChartAreas[0].AxisX.Minimum = minX;
@@ -267,20 +282,27 @@ namespace AutoRobotGUI
             myTimer.Tick += new EventHandler(TimerEventProcessor);
 
             // Sets the timer interval to 5 seconds.
-            myTimer.Interval = 50;
+            myTimer.Interval = 2;
             myTimer.Start();
-            pictureBox1.Visible = false;
+        //    pictureBox1.Visible = false;
             ObstaclesPositions = new List<Point2D>();
-            ObstaclesPositions.Add(WayPoints[2]);
-            ObstaclesPositions.Add(WayPoints[1]);
+           // ObstaclesPositions.Add(WayPoints[2]);
+           // ObstaclesPositions.Add(WayPoints[1]);
             //ObstaclesPositions.Add(new Point2D(WayPoints[1].X,6.25));
 
-
+            pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox1.Width = 100;
+            pictureBox1.Height = 100;
+            pictureBox1.Location = new Point((int)((startX-minX) * ratioX) + 220, this.Height - (int)((startY) * ratioY) + 120);
             // myTimer.Stop();
         }
 
         private void chart1_Click(object sender, EventArgs e)
         {
+            double XMouse = MousePosition.X;
+            double YMouse = MousePosition.Y;
+            System.Console.WriteLine(MousePosition.X);
+            System.Console.WriteLine(MousePosition.Y);
             double XChart = chart1.ChartAreas[0].AxisX.PixelPositionToValue(MousePosition.X);
             double YChart = chart1.ChartAreas[0].AxisY.PixelPositionToValue(MousePosition.Y);
             this.ObstaclesPositions.Add(new Point2D(XChart, YChart));

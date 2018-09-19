@@ -184,7 +184,7 @@ namespace AutoRobot
                 return new Point2D(0, 0);
             int closestIdx;
             List<Point2D> segment = FindTrajectorySegment(CurvilinearAbscissa, out closestIdx);
-            MinIdxTraj = closestIdx;
+            MinIdxTraj = (int)Math.Max(closestIdx, MinIdxTraj);
             if (segment == null)
                 return new Point2D(0, 0);
             double angle = segment[0].AbsoluteBearing( segment[1] );
@@ -211,7 +211,7 @@ namespace AutoRobot
                 double maxDeltaIdx = 20;
                 double firstIdx = closestIdx;
                 double minAngle = 100000;
-                closestIdx = 0;
+                //closestIdx = 0;
                 while (closestIdx - firstIdx < maxDeltaIdx && closestIdx < Trajectory.Count) //&& (correctionAngle > correctionAngleTol || 2 * Math.PI - correctionAngle > correctionAngleTol))
                 {
                     correctionAngle = Position.AbsoluteBearing(Trajectory[closestIdx]);
