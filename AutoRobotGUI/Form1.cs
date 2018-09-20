@@ -109,6 +109,18 @@ namespace AutoRobotGUI
             
             
             int VehGridX, VehGridY;
+            List<Point2D> futureTraj = robot.GetEstimatedFuturTrajectory(10);
+            List<List<Point2D>> corridor = robot.GetVehicleCorridor(futureTraj);
+            this.chart1.Series[1].Points.Clear();
+            
+            for (int i = 0; i < corridor.Count; i++)
+            {
+                for (int j = 0; j < corridor[i].Count; j++)
+                {
+                    Point2D pt = corridor[i][j];
+                    this.chart1.Series[1].Points.AddXY(pt.X, pt.Y);
+                }
+            }
             if (robot.IsObstacleInTrajectory(ObstaclesPositions, 10))
             {
                 int[,] Grid = robot.CreatePotentialField(ObstaclesPositions, ObstSize, out VehGridX, out VehGridY, 50, 50, ObstSize, 100);
@@ -147,7 +159,7 @@ namespace AutoRobotGUI
                             ConsigneVitesse = 0;
 
                             // How strongly we want to brake [0,+Inf]
-                            K = 10;
+                            K = 1;
                         }
                         else
                         {
@@ -199,13 +211,13 @@ namespace AutoRobotGUI
 
 
             int numberWayPoints = rand.Next(6,6);
-            numberWayPoints = 5;
+            numberWayPoints = 4;
             maxX = -1000000;
             maxY = -1000000;
             minX = 100000000;
             minY = 100000000;
             WayPoints = new List<Point2D>();
-            double distBetweenWayPoints = 10;
+            double distBetweenWayPoints = 20;
             //x = rand.NextDouble() * 10;
             //y = rand.NextDouble() * 10;
 
@@ -286,8 +298,9 @@ namespace AutoRobotGUI
             myTimer.Start();
         //    pictureBox1.Visible = false;
             ObstaclesPositions = new List<Point2D>();
-           // ObstaclesPositions.Add(WayPoints[2]);
-           // ObstaclesPositions.Add(WayPoints[1]);
+            ObstaclesPositions.Add(WayPoints[2]);
+            ObstaclesPositions.Add(WayPoints[1]);
+            ObstaclesPositions.Add(WayPoints.Last());
             //ObstaclesPositions.Add(new Point2D(WayPoints[1].X,6.25));
 
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;

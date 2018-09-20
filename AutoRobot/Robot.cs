@@ -180,13 +180,13 @@ namespace AutoRobot
             RegulatedVoltageU1 = this.InputVoltage1 + gain;
             RegulatedVoltageU2 = this.InputVoltage2;
 
-            if (MinIdxTraj > Trajectory.Count - 5)
-                return new Point2D(0, 0);
+            //if (MinIdxTraj > Trajectory.Count - 5)
+            //    return new Point2D(0, 0);
             int closestIdx;
             List<Point2D> segment = FindTrajectorySegment(CurvilinearAbscissa, out closestIdx);
             MinIdxTraj = (int)Math.Max(closestIdx, MinIdxTraj);
-            if (segment == null)
-                return new Point2D(0, 0);
+           // if (segment == null)
+            //    return new Point2D(0, 0);
             double angle = segment[0].AbsoluteBearing( segment[1] );
             
             CurvilinearAbscissa += Math.Abs(Speed);
@@ -199,45 +199,33 @@ namespace AutoRobot
             {
                 PsiConsigne = Delta_Bearing(Bearing * 180 / Math.PI, angle * 180 / Math.PI);
                 PsiConsigne *= Math.PI / 180;
-         /*       if (PsiConsigne < -MaxWheelAngleRad)
-                    PsiConsigne = -MaxWheelAngleRad;
-                if (PsiConsigne > MaxWheelAngleRad)
-                    PsiConsigne = MaxWheelAngleRad;*/
-                // Psi = (angle - Bearing);
             }
             else
             {
                 double correctionAngle = 1000000;
-                double maxDeltaIdx = 20;
+                double maxDeltaDistance = 10;
                 double firstIdx = closestIdx;
                 double minAngle = 100000;
-                //closestIdx = 0;
-                while (closestIdx - firstIdx < maxDeltaIdx && closestIdx < Trajectory.Count) //&& (correctionAngle > correctionAngleTol || 2 * Math.PI - correctionAngle > correctionAngleTol))
+                double distCumul = 0;
+                double lookForward = 5;
+                while (closestIdx < Trajectory.Count - 3 && distCumul < lookForward)
+                    distCumul += Trajectory[closestIdx].Norm(Trajectory[closestIdx++ + 1]);
+
+                while (distCumul < maxDeltaDistance && closestIdx < Trajectory.Count-1) //&& (correctionAngle > correctionAngleTol || 2 * Math.PI - correctionAngle > correctionAngleTol))
                 {
                     correctionAngle = Position.AbsoluteBearing(Trajectory[closestIdx]);
                     if ((correctionAngle + Math.PI * 2) % Math.PI < minAngle)
                         minAngle = (correctionAngle + Math.PI*2) % (2*Math.PI);
-                    closestIdx++;
+                    distCumul += Trajectory[closestIdx].Norm(Trajectory[closestIdx++ + 1]);
                 }
                 PsiConsigne = Delta_Bearing(Bearing * 180 / Math.PI, minAngle * 180 / Math.PI);
                 PsiConsigne *= Math.PI / 180;
-
-               
-
-                
-         /*       if (PsiConsigne < -MaxWheelAngleRad)
-                    PsiConsigne = -MaxWheelAngleRad;
-                if (PsiConsigne > MaxWheelAngleRad)
-                    PsiConsigne = MaxWheelAngleRad;
-                   */
-                //if (Psi > 0.3)
-                 //   Psi = 0.3;
             }
 
             double diffPsi = Delta_Bearing(Psi * 180 / Math.PI, PsiConsigne * 180 / Math.PI) * Math.PI / 180;
             
             
-            double gainPsi = diffPsi * 1.2;
+            double gainPsi = diffPsi * 0.1;
 
             RegulatedVoltageU2 = RegulatedVoltageU2 + gainPsi;
             if (RegulatedVoltageU2 > 5)
@@ -245,7 +233,7 @@ namespace AutoRobot
             if (RegulatedVoltageU2 < -5)
                 RegulatedVoltageU2 = -5;
             double deltax = 0, deltay = 0, deltatheta = 0, deltav = 0, deltaFd = 0, delpsi = 0;
-            // EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, InputVoltage1, inputVolu2);
+
             EstimateNextState(Speed, out deltax, out deltay, out deltatheta, out delpsi, out deltav, out deltaFd, RegulatedVoltageU1, RegulatedVoltageU2);
             
             Bearing += deltatheta;
@@ -274,97 +262,110 @@ namespace AutoRobot
 
         private void EstimateNextState(double Speed, out double delx, out double dely, out double deltheta, out double delpsi, out double delv, out double delFd, double u1 = 2.8, double u2 = 2.8)
         {
-            double x = Position.X;
-            double y = Position.Y;
-            double theta = Bearing;
-            double vu = Speed;
+            double Lf = Position.Norm(FrontAxlePosition);
+            double Lr = Position.Norm(RearAxlePosition);
 
-            //u1 = 2.8;
+            double accel;
+
+            accel = (u1 - this.InputVoltage1) / 15;
+            Psi = u2;
+
+            //Psi = this.InputVoltage2 / 100;
+            // Car kinematics model
+            double Beta = Math.Atan(Lr / (Lf + Lr) * Math.Tan(Psi));
+            double kin_x = Speed * Math.Cos(Beta + Bearing);
+            double kin_y = Speed * Math.Sin(Beta + Bearing);
+            double kin_psi = Speed / Lr * Math.Sin(Beta);
+            double kin_v = accel;
             
-            // Distance between the rear axle and the center of gravity
-            double b = RearAxlePosition.Norm( Position);
-            
-            // l is the distance between the rear and front axles
-            double l = RearAxlePosition.Norm(FrontAxlePosition);
 
-            // Vehicle mass in g
-            double m = VehicleMass;
+            // Car dynamics model
 
-            // Mass moment of inertia Note: Model of a cube
-            //  double J = 1 / 12 * m * (Math.Pow(VehicleLength, 2) + Math.Pow(VehicleWidth, 2));
-            double W = 0.1651;
+            double vx = Math.Cos(Beta) * Speed;
+            double vy = Math.Sin(Beta) * Speed;
+            double m = this.VehicleMass;
 
-            double J = W * l * m;
-            double Jeq = Math.Pow(b, 2) * m + J;
-            // Setting basic Motor and load inertia in Nm/rad/s2
-            //J = 0.00025;
+            // Yaw inertia:
+            double Iz = 100;
 
-            double gamma = Math.Pow(Math.Cos(Psi),2)*(Math.Pow(l,2)*m+(Math.Pow(b,2)*m+Jeq*Math.Pow(Math.Tan(Psi),2)));
+            // Radius of wheel:
+            double r = 35e-3;
 
-            
-            // Terminal resistance of DC Motor in Ohm 
-            double Ra = 1.9;
+            // Cornering stiffness coefficient front
+            double Caf = 0;
 
-            // Terminal inductance of DC Motor in milliHenries
-            double La = 1.064e-4;
-            La = 0.5;
-
-            double Tau_s = La / Ra;
-
-            // ????
-            // double cs = 0.6;
-            double cs = 0.1;
-            // Motor constant
-            double MotorTorque = 10;
-            double ResistivePowerLoss = 3;
-            double Km = MotorTorque / Math.Sqrt(ResistivePowerLoss);
-
-            Km = 6.7831e-3;
-            // Also known as Kv, 
-            double Kb = Km;
-
-            // Friction in Nm/rad/s
-            //double Bm = 0.0001; // Found on net
-            double Bm = 3.397e-5;
-            // Number of teeth on the gears connecting the axles
-            double Nw = 81;
-
-            // Radius of wheel
-            double Rw = 31.75e-3;
-
-            // Number of teeth on the gears connecting the motor
-            double Nm = 21;
-
-            // u1 and u2 are Input voltage in [-5,5]Volts
-            
-            
-             delx = (Math.Cos(theta) - ((b * Math.Tan(Psi)) / l)  * Math.Sin(theta)) * vu;
-             dely = (Math.Sin(theta) + ((b * Math.Tan(Psi)) / l) * Math.Cos(theta)) * vu;
-             deltheta = (Math.Tan(Psi) / l) * vu;
-             delpsi = 1 / Tau_s * Psi + cs * this.InputVoltage2;
-
-
-            double MaxWheelAngleRad = 0.6;
-            if (Psi + delpsi < -MaxWheelAngleRad)
+            // Front wheel slip angle
+            double af;
+            if (vx > 0)
             {
-                delpsi = 0;
-                Psi = -MaxWheelAngleRad;
+                af = (vy + Lf * r) / vx - Psi;
             }
-            if (Psi + delpsi > MaxWheelAngleRad)
+            else
             {
-                delpsi = 0;
-                Psi = MaxWheelAngleRad;
+                af = 0;
             }
+            // af = -(u2 - this.InputVoltage2);
+            // Using simplified Pajecka model (http://eprints.hud.ac.uk/id/eprint/1190/1/fulltext1.pdf)
 
-            delv = vu * (Math.Pow(b, 2) * m + J) * Math.Tan(Psi) / gamma * delpsi + Math.Pow(l, 2) * Math.Pow(Math.Cos(Psi), 2) / gamma * Fd;
-            delFd = -Ra / La * Fd - ((Km * Kb + Ra * Bm) * Math.Pow(Nw,2)) / (La*Math.Pow(Nm,2)*Math.Pow(Rw,2)) * vu + ((Km * Nw) / (La * Nm * Rw) * u1);
-            //delFd = Rw * Nm * La / Nw / Km * (this.InputVoltage1 + (Ra * Bm * Km * Kb) * Math.Pow(Nw, 2) / Math.Pow(Nm, 2) / Math.Pow(Rw, 2) * vu + Ra / La * Fd);
-            /*
-            double vv1 = - vu * Math.Pow(l,2)*
+            // Cornering stiffness coefficient rear
 
-            double w1 = vv1 + d_eta;
-            delFd = Rw * Nm * La / Nw / Km * (w1 + (Ra * Bm * Km * Kb) * Math.Pow(Nw, 2) / Math.Pow(Nm, 2) / Math.Pow(Rw, 2) * vu + Ra / La * Fd);
- */
+
+            // Belt compression modulus. The suggested value is 27e6 N / M²
+            double E = 27*10e6;
+
+            // Material thickness of the belt. It is suggested that a value of 0.015 m be used for road tyres and a value of 0.01 m for race tyres
+            double b = 0.015;
+
+
+            double w = r / 100;
+
+            // Radius of the wheel
+            double r_paj = r;
+            double a = 1;
+
+            // Parameter s can always be assumed to be 0.15 for road tyres and 0.1 for racing tyres
+            double s = 0.15;
+
+            double L =  2 * (r + w * a) * Math.Sin(Math.Acos(1 - (s * w * a / (r_paj + w * a))));
+            double x = L / 6;
+            double Car = 4 *E*b*Math.Pow(w,3) / (3*x*(2*Math.PI*(r_paj+w*a)-L));
+
+            // Rear wheel slip angle
+            double ar;
+            if (vx > 0.1)
+            {
+                ar = (vy - Lr * r) / vx;
+            }
+            else
+            {
+                ar = 0;
+            }
+            ar = 0;
+            Caf = Car;
+             double Fcf = -Caf * af;
+            double Fcr = -Car * ar;
+            //Fcr = 0;
+            // Longitudinal speed in the body frame
+            double dyn_x = kin_psi * kin_y + vx;
+
+            // Lateral speed in the body frame
+            double dyn_y = -kin_psi * kin_x + 2 / VehicleMass * (Fcf * Math.Cos(Psi) + Fcr);
+
+            // Yaw rate
+            double dyn_psi = 2 / Iz * (Lf * Fcf - Lr * Fcr);
+
+            // 
+            double dyn_posx = kin_x * Math.Cos(Bearing) - kin_y * Math.Sin(Bearing);
+            double dyn_posy = kin_x * Math.Sin(Bearing) + kin_y * Math.Cos(Bearing);
+
+            dyn_posx = (Math.Cos(Bearing) - Beta * Math.Sin(Bearing)) * Speed;
+            dyn_posy = (Math.Sin(Bearing) + Beta * Math.Cos(Bearing)) * Speed;
+            delx = dyn_posx;
+            dely = dyn_posy;
+            deltheta = Beta;
+            delpsi = dyn_psi;
+            delv = kin_v;
+            delFd = 0;
         }
 
         public double CurvilinearAbscissaCumul(int endIndex)
@@ -400,22 +401,7 @@ namespace AutoRobot
             Segment.Add(Trajectory[minI + 1]);
             idx = minI;
             return Segment;
-            /*
-            for (int i = 0; i < Trajectory.Count; i++)
-            {
-                if (CurvilinearAbscissaCumul(i) > curvilinearAbsicca)
-                {
-                    List<Point2D> currentSegment = new List<Point2D>();
-                    currentSegment.Add(Trajectory[i-1]);
-                    currentSegment.Add(Trajectory[i]);
-                    return currentSegment;
-                }
-            }
-            List<Point2D> currentSeg = new List<Point2D>();
-            currentSeg.Add(Trajectory[0]);
-            currentSeg.Add(Trajectory[1]);
-            return currentSeg;
-            */
+
         }
 
         public Point2D CalculateRobotNextPositionCartesian(Point2D origin, double xToMove, double yToMove)
@@ -498,15 +484,17 @@ namespace AutoRobot
             estimatedRobot.Fd = 10;
             estimatedRobot.Bearing = this.Bearing;
             estimatedRobot.MinIdxTraj = this.MinIdxTraj;
-            estimatedRobot.InputVoltage1 = 2.8;
+            estimatedRobot.InputVoltage1 = InputVoltage1;
+            estimatedRobot.InputVoltage2 = InputVoltage2;
+            estimatedRobot.Psi = Psi;
             futurTrajectory.Add(actualPosition);
             double distanceCumulee = 0;
 
-            while (distanceCumulee < estimatedDistance && estimatedRobot.MinIdxTraj < estimatedRobot.Trajectory.Count - 5)
+            while (distanceCumulee < estimatedDistance && estimatedRobot.MinIdxTraj < estimatedRobot.Trajectory.Count)
             {
                 double RegulatedVoltageU1;
                 double RegulatedVoltageU2;
-                estimatedRobot.MoveRobot(out RegulatedVoltageU1, out RegulatedVoltageU2, 0.6, 0.6, 1, this.InputVoltage2);
+                estimatedRobot.MoveRobot(out RegulatedVoltageU1, out RegulatedVoltageU2, 0.6, 0.6);
                 futurTrajectory.Add(estimatedRobot.Position);
                 distanceCumulee += futurTrajectory[futurTrajectory.Count -1].
                     Norm(futurTrajectory[futurTrajectory.Count - 2]);
@@ -678,7 +666,10 @@ namespace AutoRobot
                 Tuple<int,int, int> Position = queue.Dequeue();
                 
                 X = Position.Item1;
-                Y = Position.Item2;                
+                Y = Position.Item2;
+
+                if (X < 0 || X >= GridWidth || Y < 0 || Y >= GridHeight)
+                    continue;
                 Val = Position.Item3;
                 if (Val > MaximumVal)
                     MaximumVal = Val;
