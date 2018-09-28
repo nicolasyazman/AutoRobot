@@ -24,7 +24,7 @@ namespace AutoRobotGUI
         List<Point2D> WayPoints;
         double ObstSize = 2.0;
         double u1 = 2.8, u2 = 2.8;
-        double ConsigneVitesse = 0.4;
+        double ConsigneVitesse = 0.2;
         double K = 0.1;
         double maxX, minX, maxY, minY;
 
@@ -134,10 +134,10 @@ namespace AutoRobotGUI
                         dummyRobot.Trajectory = new List<Point2D>(robot.Trajectory);
                         dummyRobot.MinIdxTraj = robot.MinIdxTraj;
                         dummyRobot.Position = robot.Position;
-                        dummyRobot.FindTrajectorySegment(0, out startIdx);
+                        dummyRobot.FindTrajectorySegment(out startIdx);
                         dummyRobot.Position = positions[positions.Count - 1];
                         dummyRobot.MinIdxTraj = startIdx;
-                        dummyRobot.FindTrajectorySegment(0, out endIdx, dummyRobot.Trajectory.Count);
+                        dummyRobot.FindTrajectorySegment(out endIdx, dummyRobot.Trajectory.Count);
 
                         int numberToSuppress = endIdx - startIdx;
                         while (numberToSuppress > 0)
@@ -155,7 +155,7 @@ namespace AutoRobotGUI
                 {
                         if (robot.Speed > 0)
                         {
-                            // Speed we want to reach
+                            // Speed we want to reach : 0 = braking
                             ConsigneVitesse = 0;
 
                             // How strongly we want to brake [0,+Inf]
@@ -217,7 +217,7 @@ namespace AutoRobotGUI
             minX = 100000000;
             minY = 100000000;
             WayPoints = new List<Point2D>();
-            double distBetweenWayPoints = 20;
+            double distBetweenWayPoints = 25;
             //x = rand.NextDouble() * 10;
             //y = rand.NextDouble() * 10;
 

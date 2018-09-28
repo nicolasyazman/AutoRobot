@@ -6,40 +6,94 @@ namespace AutoRobot
 {
     public class Robot
     {
-        // Current position of the center of gravity of the robot
+
+        /// <summary>
+        /// Current position of the center of gravity of the robot.
+        /// </summary>
         public Point2D Position { get; set; }
 
-        // Current bearing of the vehicle w.r. to the X axis
+
+        /// <summary>
+        /// Current bearing (yaw angle / heading) of the robot w.r. to the X axis.
+        /// </summary>
         public double Bearing { get; set;  }
 
-        // Steering angle between the front wheel and the body axis
+        /// <summary>
+        /// Steering angle between the front wheel and the body axis.
+        /// </summary>
         public double Psi { get; set; }
 
+        /// <summary>
+        /// Speed of the robot in meters/seconds.
+        /// </summary>
         public double Speed { get; set; }
+
 
         public double CurvilinearAbscissa { get; private set;}
 
+
+        /// <summary>
+        /// Position of the center of the rear axle of the robot, in meters.
+        /// </summary>
         private Point2D RearAxlePosition { get; set; }
+
+        /// <summary>
+        /// Position of the center of the front axle of the robot, in meters.
+        /// </summary>
         private Point2D FrontAxlePosition { get; set; }
 
+        /// <summary>
+        /// Trajectory the robot should follow.
+        /// </summary>
         public List<Point2D> Trajectory { get; set; }
 
+        /// <summary>
+        /// Width of the robot in meters.
+        /// </summary>
         public double VehicleWidth { get; set; }
 
+
+        /// <summary>
+        /// Length of the robot in meters.
+        /// </summary>
         public double VehicleLength { get; set; }
 
+        /// <summary>
+        /// Height of the robot in meters.
+        /// </summary>
         public double VehicleHeight { get; set; }
 
+        /// <summary>
+        /// Mass of the robot in kilograms.
+        /// </summary>
         public double VehicleMass { get; set; }
 
+        /// <summary>
+        /// Value corresponding to the speed instruction of the robot. Should be within [-5,+5].
+        /// </summary>
         public double InputVoltage1 { get; set; }
 
+        /// <summary>
+        /// Value corresponding to the yaw instruction of the robot. Should be within [-5,+5].
+        /// </summary>
         public double InputVoltage2 { get; set; }
-
-        // DrivingForce
+        
+        /// <summary>
+        /// Driving force. Not used.
+        /// </summary>
         public double Fd { get; set; }
 
+
+        /// <summary>
+        /// Current index of the trajectory segment the robot is closest to.
+        /// </summary>
         public int MinIdxTraj { get; set; }
+
+        /// <summary>
+        /// Constructor of the robot. Takes a position of origin and an initial heading.
+        /// </summary>
+        /// <param name="pos">Position of the robot in meters.</param>
+        /// <param name="initialBearing">Heading of the robot in radians.</param>
         public Robot(Point2D pos, double initialBearing = 0)
         {
             this.Position = pos;
@@ -55,17 +109,22 @@ namespace AutoRobot
             this.InputVoltage2 = 0;
         }
 
+        /// <summary>
+        /// Not used.
+        /// </summary>
+        /// <param name="newPosition"></param>
+        /// <returns></returns>
         public Point2D MoveRobot(Point2D newPosition)
         {
             this.Position = newPosition;
-
-
-
             // Do this command at the end
             this.UpdateAxlesPositions();
             return this.Position;
         }
 
+        /// <summary>
+        /// This recomputes and reassigns the position of the rear and front axles of the robot.
+        /// </summary>
         private void UpdateAxlesPositions()
         {
             double ContraryWiseAngle = Bearing + Math.PI;
@@ -76,11 +135,16 @@ namespace AutoRobot
             FrontAxlePosition = new Point2D(Position.X + Math.Cos(Bearing) * ThirdLength, Position.Y + Math.Sin(Bearing));
         }
 
-
-        // Calculate the distance between
-        // point pt and the segment p1 --> p2.
-        private double FindDistanceToSegment(
-            Point2D pt, Point2D p1, Point2D p2, out Point2D closest)
+        
+        /// <summary>
+        /// This function calculates the euclidian distance between a 2D Point and a segment defined by two points. Returns the distance and the closest point. 
+        /// </summary>
+        /// <param name="pt">2D Point whose euclidian distance to the segment p1->p2 we want to compute.</param>
+        /// <param name="p1">First point of the segment.</param>
+        /// <param name="p2">Second point of the segment.</param>
+        /// <param name="closest">Output parameter. Closest point to the segment.</param>
+        /// <returns>Euclidian distance in meters from the point pt to the closest point.</returns>
+        private double FindDistanceToSegment(Point2D pt, Point2D p1, Point2D p2, out Point2D closest)
         {
             double dx = p2.X - p1.X;
             double dy = p2.Y - p1.Y;
@@ -120,29 +184,15 @@ namespace AutoRobot
 
             return Math.Sqrt(dx * dx + dy * dy);
         }
+
+        /// <summary>
+        /// This function computes the difference between two angles.
+        /// </summary>
+        /// <param name="b1">First angle, in degrees.</param>
+        /// <param name="b2">Second angle, in degrees</param>
+        /// <returns>Difference between the two angles.</returns>
         static double Delta_Bearing(double b1, double b2)
         {
-            /*
-			 * Optimal solution
-			 *
-			decimal d = 0;
- 
-			d = (b2-b1)%360;
- 
-			if(d>180)
-				d -= 360;
-			else if(d<-180)
-				d += 360;
- 
-			return d;
-			 *
-			 * 
-			 */
-
-
-            //
-            //
-            //
             double d = 0;
 
             // Convert bearing to W.C.B
@@ -161,14 +211,19 @@ namespace AutoRobot
             else if (d < -180)
                 d += 360;
 
-            return d;
-
-            //
-            //
-            //
+            return d;           
         }
-
-        // MaxWheelAngleRad = 0.3
+        
+        /// <summary>
+        /// Moves the robot using the robot's internal parameters.
+        /// </summary>
+        /// <param name="RegulatedVoltageU1">Output parameter. Value representing how fast the robot should drive.</param>
+        /// <param name="RegulatedVoltageU2">Output parameter. Value representing how hard the robot should turn.</param>
+        /// <param name="ConsigneVitesse">Speed instruction. The robot should do its best to reach this speed.</param>
+        /// <param name="MaxWheelAngleRad">Max angle the wheels can turn.</param>
+        /// <param name="K">How hard the vehicle speeds up and turns.</param>
+        /// <param name="inputVolu2">Input voltage 2 (Not used)</param>
+        /// <returns>Position of the robot after it has moved.</returns>
         public Point2D MoveRobot(out double RegulatedVoltageU1, out double RegulatedVoltageU2, double ConsigneVitesse = 0.4, double MaxWheelAngleRad = 0.6, double K = 0.1, double inputVolu2 = 2.8)
         {
             ConsigneVitesse /= (1 + Math.Abs(this.InputVoltage2));
@@ -183,7 +238,7 @@ namespace AutoRobot
             //if (MinIdxTraj > Trajectory.Count - 5)
             //    return new Point2D(0, 0);
             int closestIdx;
-            List<Point2D> segment = FindTrajectorySegment(CurvilinearAbscissa, out closestIdx);
+            List<Point2D> segment = FindTrajectorySegment(out closestIdx);
             MinIdxTraj = (int)Math.Max(closestIdx, MinIdxTraj);
            // if (segment == null)
             //    return new Point2D(0, 0);
@@ -260,6 +315,18 @@ namespace AutoRobot
             return Position;
         }
 
+        /// <summary>
+        /// Estimates the difference between the state variables of the robot at the moment t and t+1.
+        /// </summary>
+        /// <param name="Speed">Speed of the robot.</param>
+        /// <param name="delx">Output parameter. Delta in X position. In meters.</param>
+        /// <param name="dely">Output parameter. Delta in Y position. In meters.</param>
+        /// <param name="deltheta">Output parameter. Delta in bearing. In radians.</param>
+        /// <param name="delpsi">Output parameter. Delta in wheel angle. In radians.</param>
+        /// <param name="delv">Output parameter. Delta in speed. In meters per second.</param>
+        /// <param name="delFd">Output parameter. Delta in driving force. In newtons.</param>
+        /// <param name="u1">Regulated speed instruction.</param>
+        /// <param name="u2">Regulated wheel angle instruction.</param>
         private void EstimateNextState(double Speed, out double delx, out double dely, out double deltheta, out double delpsi, out double delv, out double delFd, double u1 = 2.8, double u2 = 2.8)
         {
             double Lf = Position.Norm(FrontAxlePosition);
@@ -342,7 +409,8 @@ namespace AutoRobot
             }
             ar = 0;
             Caf = Car;
-             double Fcf = -Caf * af;
+
+            double Fcf = -Caf * af;
             double Fcr = -Car * ar;
             //Fcr = 0;
             // Longitudinal speed in the body frame
@@ -368,6 +436,11 @@ namespace AutoRobot
             delFd = 0;
         }
 
+        /// <summary>
+        /// Not used ?
+        /// </summary>
+        /// <param name="endIndex"></param>
+        /// <returns></returns>
         public double CurvilinearAbscissaCumul(int endIndex)
         {
             double cumul = 0;
@@ -380,7 +453,14 @@ namespace AutoRobot
             return cumul;
         }
 
-        public List<Point2D> FindTrajectorySegment(double curvilinearAbsicca, out int idx, int MaxLookingDistance = 20)
+
+        /// <summary>
+        /// This function finds the trajectory segment closest to the robot by looking at the trajectory from the current trajectory segment to a certain curvilinear distance. 
+        /// </summary>
+        /// <param name="idx">Out parameter, index of the found closest trajectory segment.</param>
+        /// <param name="MaxLookingDistance">Maximum looking distance in meters.</param>
+        /// <returns>List of 2 Point2D containing as first element the start of the trajectory segment, and as second element the end of the trajectory segment.</returns>
+        public List<Point2D> FindTrajectorySegment(out int idx, int MaxLookingDistance = 20)
         {
             double minDist = 100000000;
             int minI = 0;
@@ -401,14 +481,28 @@ namespace AutoRobot
             Segment.Add(Trajectory[minI + 1]);
             idx = minI;
             return Segment;
-
         }
 
+        /// <summary>
+        /// This function computes a new 2D position given an origin and a X and Y axis displacement.
+        /// </summary>
+        /// <param name="origin">Position before displacement. 2D Point representing the robot position.</param>
+        /// <param name="xToMove">X abscissa displacement.</param>
+        /// <param name="yToMove">Y abscissa displacement.</param>
+        /// <returns>New Point2D representing the new robot position, after it has moved.</returns>
         public Point2D CalculateRobotNextPositionCartesian(Point2D origin, double xToMove, double yToMove)
         {
             return new Point2D(origin.X + xToMove, origin.Y + yToMove);          
         }
 
+
+        /// <summary>
+        /// This function computes a new 2D position given an origin, a yaw (heading) angle and a distance along this angle.
+        /// </summary>
+        /// <param name="origin">Position before displacement. 2D Point representing the robot position.</param>
+        /// <param name="angle">Yaw angle (heading) of the robot. Should be given in radians.</param>
+        /// <param name="distance">Distance of displacement, in meters.</param>
+        /// <returns>New Point2D representing the new robot position, after it has moved.</returns>
         public Point2D CalculateRobotNextPositionPolar(Point2D origin, double angle, double distance)
         {
             double xToMove = Math.Cos(angle) * distance;
@@ -416,6 +510,13 @@ namespace AutoRobot
             return CalculateRobotNextPositionCartesian(origin, xToMove, yToMove);
         }
 
+        /// <summary>
+        /// Computes a number nbPoints of intermediate points between two points which define a segment.
+        /// </summary>
+        /// <param name="origin">Start of the segment.</param>
+        /// <param name="dest">End of the segment.</param>
+        /// <param name="nbPoints">Number of points.</param>
+        /// <returns>List of interpolated 2D points.</returns>
         public List<Point2D> CalculateIntermediatePointsBetween2Points(Point2D origin, Point2D dest, double nbPoints)
         {
 
@@ -433,6 +534,14 @@ namespace AutoRobot
             return res;
         }
 
+        /// <summary>
+        /// Computes a number N of interpolated points between two points which define a segment. These points are separated by distanceBetweenPoints.
+        /// </summary>
+        /// <param name="origin">Start of the segment.</param>
+        /// <param name="dest">End of the segment.</param>
+        /// <param name="distanceBetweenPoints">Distance between the points, in meters.</param>
+        /// <param name="accumulatedDistance">Accumulated distance, in meters.</param>
+        /// <returns></returns>
         public List<Point2D> CalculateIntermediatePointsSeparatedByDistance(Point2D origin, Point2D dest, double distanceBetweenPoints, double accumulatedDistance = 0)
         {
             double totalDistance = origin.Norm( dest);
@@ -451,6 +560,12 @@ namespace AutoRobot
             return res;
         }
 
+        /// <summary>
+        /// Takes a list of WayPoints as an input and returns a set of points separated by distanceBetweenPoints which are interpolated between these waypoints.
+        /// </summary>
+        /// <param name="WayPoints">Interpolation points.</param>
+        /// <param name="distanceBetweenPoints">Distance between the points in meters.</param>
+        /// <returns>List of interpolated 2D Points.</returns>
         public List<Point2D> CalculateIntermediatePointsBetweenWayPoints(List<Point2D> WayPoints, double distanceBetweenPoints)
         {
             List<Point2D> totalPoints = new List<Point2D>();
@@ -474,6 +589,11 @@ namespace AutoRobot
             return totalPoints;
         }
 
+        /// <summary>
+        /// Computes the estimated future trajectory the robot will follow.
+        /// </summary>
+        /// <param name="estimatedDistance">Estimation distance in meters.</param>
+        /// <returns>List of 2D Points, each of them being a position the robot will occupy in the future.</returns>
         public List<Point2D> GetEstimatedFuturTrajectory(double estimatedDistance = 20)
         {
             List<Point2D> futurTrajectory = new List<Point2D>();
@@ -503,6 +623,12 @@ namespace AutoRobot
             return futurTrajectory;
         }
 
+        /// <summary>
+        /// Checks if there is an obstacle in the current robot trajectory.
+        /// </summary>
+        /// <param name="ObstaclesPos">List containing the 2D position of the obstacles in the map.</param>
+        /// <param name="AnticipationDistance">Distance where we should anticipate the obstacle presence.</param>
+        /// <returns>True if there is an obstacle in the trajectory, false otherwise.</returns>
         public bool IsObstacleInTrajectory(List<Point2D> ObstaclesPos, double AnticipationDistance = 20)
         {
             for (int obsId = 0; obsId < ObstaclesPos.Count; obsId++)
@@ -520,7 +646,11 @@ namespace AutoRobot
             return false;
         }
 
-
+        /// <summary>
+        /// Computes a 'corridor' which is a danger zone around the robot's future trajectory.
+        /// </summary>
+        /// <param name="Trajectory">List of 2D Points which define the future trajectory of the robot.</param>
+        /// <returns>"Matrix" containing for each row 4 2DPoints, each being a corner of the square representing the robot's boundaries.</returns>
         public List<List<Point2D>> GetVehicleCorridor(List<Point2D> Trajectory)
         {
             List<List<Point2D>> corridor = new List<List<Point2D>>();
@@ -560,6 +690,14 @@ namespace AutoRobot
             return (p1.X - p3.X) * (p2.Y - p3.Y) - (p2.X - p3.X) * (p1.Y - p3.Y);
         }
 
+        /// <summary>
+        /// Checks if a point is inside a triangle defined by 3 vertices.
+        /// </summary>
+        /// <param name="pt">Point that we wish to check is inside the triangle.</param>
+        /// <param name="v1">First vertex of the triangle.</param>
+        /// <param name="v2">Second vertex of the triangle.</param>
+        /// <param name="v3">Third vertex of the tirangle.</param>
+        /// <returns>True if the point is inside the triangle, false otherwise.</returns>
         bool PointInTriangle(Point2D pt, Point2D v1, Point2D v2, Point2D v3)
         {
             bool b1, b2, b3;
@@ -571,6 +709,12 @@ namespace AutoRobot
             return ((b1 == b2) && (b2 == b3));
         }
 
+        /// <summary>
+        /// Checks if a point is inside a rectangle by checking if that point is inside one of the two triangles making up the vehicle.
+        /// </summary>
+        /// <param name="rectPoints">List of 4 2D Points representing the vertices of the rectangle (boundaries / corners / etc...)</param>
+        /// <param name="point">Point we wish to see if it is inside the rectangle.</param>
+        /// <returns>True if the point is inside the rectangle, false otherwise.</returns>
         public bool IsPointInsideRectangle(List<Point2D> rectPoints, Point2D point)
         {
             rectPoints.Sort((point1, point2) =>  point1.Y.CompareTo(point2.Y));
@@ -583,20 +727,13 @@ namespace AutoRobot
         
         public int[,] CreatePotentialField(List<Point2D> ObstaclesGC, double ObstacleSize, out int VehGridX, out int VehGridY, double GridWidth = 100, double GridHeight = 100, double SafetyDistance = 10, double LookIdx = 10)
         {
-            double GridResolution = 0.1;
+            double GridResolution = 0.25;
 
             int NumberOfCellsPerRow = (int)Math.Ceiling(GridWidth / GridResolution);
             int NumberOfRows = (int)Math.Ceiling(GridHeight / GridResolution);
 
             int[,] Grid = new int[NumberOfRows, NumberOfCellsPerRow]; 
-        /*    for (int y = 0; y < NumberOfRows; y++)
-            {
-                for (int x = 0; x < NumberOfCellsPerRow; x++)
-                {
-                    Grid[y, x] = 0;
-                }
-            }
-            */
+
             double GridStartX = NumberOfCellsPerRow / 2;
             double GridStartY = NumberOfRows / 2;
 
@@ -610,7 +747,7 @@ namespace AutoRobot
                 LookForward++;
             }
             int minidx;
-            FindTrajectorySegment(0, out minidx, 100000);
+            FindTrajectorySegment(out minidx, 100000);
             for (int i = (int)(Math.Min(minidx + LookForward, Trajectory.Count)); i < (int)(Math.Min(Trajectory.Count,MinIdxTraj+LookForward+LookIdx)); i++)
             {
                 Point2D trajPoint = Trajectory[i];
@@ -641,14 +778,21 @@ namespace AutoRobot
 
             VehGridX = (int)Math.Floor(Position.X / GridResolution + GridStartX);
             VehGridY = (int)Math.Floor(Position.Y / GridResolution + GridStartY);
-            //Grid[VehGridY, VehGridX] = 2;
             return Grid;
         }
 
-
-        public List<Point2D> FindShortestPath(int[,] Grid, int GridWidth, int GridHeight, int StartX, int StartY)
+        /// <summary>
+        /// This function returns the shortest path between the robot starting postion defined with StartX and StartY coordinates and a 'goal point'.
+        /// </summary>
+        /// <param name="Grid">Two dimensional int array with a width of GridWidth meters and a height of Gridheight.</param>
+        /// <param name="GridWidth">Width of the grid in meters.</param>
+        /// <param name="GridHeight">Height of the grid in meters.</param>
+        /// <param name="StartX">Starting X of the pathfinding (robot X position).</param>
+        /// <param name="StartY">Starting Y of the pathfinding (robot Y position).</param>
+        /// <param name="GridResolution">Resolution of the grid, meaning for 1 real life meter there are 1 / GridResolution grid cells. Default value is 0.25 (4 grid cells per real-life meter.)</param>
+        /// <returns>A List of Point2D containing the subsequent positions from the origin to the first 'goal point' reached.</returns>
+        public List<Point2D> FindShortestPath(int[,] Grid, int GridWidth, int GridHeight, int StartX, int StartY, double GridResolution = 0.25)
         {
-            double GridResolution = 0.1;
             GridWidth = (int)(GridWidth / GridResolution);
             GridHeight = (int)(GridHeight / GridResolution);
 
