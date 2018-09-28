@@ -596,6 +596,7 @@ namespace AutoRobot
         /// <returns>List of 2D Points, each of them being a position the robot will occupy in the future.</returns>
         public List<Point2D> GetEstimatedFuturTrajectory(double estimatedDistance = 20)
         {
+            estimatedDistance *= (Speed + 2);
             List<Point2D> futurTrajectory = new List<Point2D>();
             Point2D actualPosition = new Point2D(this.Position.X, this.Position.Y);
             Robot estimatedRobot   = new Robot(actualPosition);
@@ -727,6 +728,8 @@ namespace AutoRobot
         
         public int[,] CreatePotentialField(List<Point2D> ObstaclesGC, double ObstacleSize, out int VehGridX, out int VehGridY, double GridWidth = 100, double GridHeight = 100, double SafetyDistance = 10, double LookIdx = 10)
         {
+            // TO TEST THINGS
+            ObstacleSize += SafetyDistance * 2;
             double GridResolution = 0.25;
 
             int NumberOfCellsPerRow = (int)Math.Ceiling(GridWidth / GridResolution);
@@ -737,16 +740,17 @@ namespace AutoRobot
             double GridStartX = NumberOfCellsPerRow / 2;
             double GridStartY = NumberOfRows / 2;
 
-            double LookForwardDistanceMeters = 5;
+            double LookForwardDistanceMeters = 15;
             int LookForward = 10;
             double CurvAbsCumul = 0;
 
-            while (CurvAbsCumul < LookForwardDistanceMeters && MinIdxTraj + LookForward < Trajectory.Count - 1)
+            while (CurvAbsCumul < LookForwardDistanceMeters && MinIdxTraj + LookForward < Trajectory.Count - 2)
             {
                 CurvAbsCumul += Trajectory[MinIdxTraj + LookForward].Norm(Trajectory[MinIdxTraj + LookForward + 1]);
                 LookForward++;
             }
             int minidx;
+
             FindTrajectorySegment(out minidx, 100000);
             for (int i = (int)(Math.Min(minidx + LookForward, Trajectory.Count)); i < (int)(Math.Min(Trajectory.Count,MinIdxTraj+LookForward+LookIdx)); i++)
             {
@@ -756,6 +760,8 @@ namespace AutoRobot
                 if (Gridx >= 0 && Gridx < NumberOfCellsPerRow && Gridy >= 0 && Gridy < NumberOfRows)
                     Grid[Gridy, Gridx] = -3;
             }
+
+
             for (int i = 0; i < ObstaclesGC.Count; i++)
             {
                 double obstacleX = ObstaclesGC[i].X / GridResolution + GridStartX;
@@ -997,7 +1003,7 @@ namespace AutoRobot
                 }
 
                 // North East
-                else if (Y - 1 >= 0 && X + 1 >= 0 && Grid[Y - 1, X + 1] == ValShouldBe)
+                else if (Y - 1 >= 0 && X + 1 < GridWidth && Grid[Y - 1, X + 1] == ValShouldBe)
                 {
 
                     Y = Y - 1;
