@@ -308,6 +308,7 @@ namespace AutoRobotGUI
             pictureBox1.Height = 100;
             pictureBox1.Location = new Point((int)((startX-minX) * ratioX) + 220, this.Height - (int)((startY) * ratioY) + 120);
             // myTimer.Stop();
+            pictureBox1.Visible = false;
         }
 
         private void chart1_Click(object sender, EventArgs e)
