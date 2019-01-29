@@ -80,7 +80,10 @@ namespace AutoRobotGUI
             double RegulatedVoltageU2;
             // ----------------------------------------- MOVEROBOT ---------------------------------
             Point2D position = robot.MoveRobot(out RegulatedVoltageU1, out RegulatedVoltageU2, ConsigneVitesse, 0.6, K);
-            
+            //System.IO.File.AppendAllText(@"C:\Users\Nicolas\Documents\AutoRobotDoc\ConsigneVitesse.txt", ConsigneVitesse.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n");
+            //System.IO.File.AppendAllText(@"C:\Users\Nicolas\Documents\AutoRobotDoc\RegulatedSpeed.txt", robot.Speed.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n");
+            //System.IO.File.AppendAllText(@"C:\Users\Nicolas\Documents\AutoRobotDoc\RegulatedSteering.txt", RegulatedVoltageU2.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n");
+
             if (position.X == 0 && position.Y == 0)
                 return;
                 this.chart1.Series[1].Points.AddXY(position.X, position.Y);

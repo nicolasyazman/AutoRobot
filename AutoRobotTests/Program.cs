@@ -83,7 +83,7 @@ namespace AutoRobotTests
             Robot r = new Robot(orig);
 
             int nbPoints = rand.Next(3, 10);
-            List<Point2D> intermediatePoints = r.CalculateIntermediatePointsBetween2Points(orig, dest, nbPoints);
+            List<Point2D> intermediatePoints = r.Traj.CalculateIntermediatePointsBetween2Points(r, orig, dest, nbPoints);
 
             intermediatePoints.Should().NotBeNullOrEmpty();
             intermediatePoints.Count.Should().Be(nbPoints);
@@ -141,7 +141,7 @@ namespace AutoRobotTests
             Robot r = new Robot(WayPoints[0]);
 
             double distanceBetweenPoints = rand.NextDouble() * 100 + 0.05;
-            List<Point2D> intermediatePoints = r.CalculateIntermediatePointsBetweenWayPoints(WayPoints, distanceBetweenPoints);
+            List<Point2D> intermediatePoints = r.Traj.CalculateIntermediatePointsBetweenWayPoints(r, WayPoints, distanceBetweenPoints);
 
             intermediatePoints.Should().NotBeNullOrEmpty();
             intermediatePoints.Should().NotContainNulls();
@@ -207,8 +207,8 @@ namespace AutoRobotTests
 
             MyRobot robot = new MyRobot(WayPoints[0], 0);
 
-            List<Point2D> trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(WayPoints, 1.55);
-            robot.Trajectory = WayPoints;
+            List<Point2D> trajectory = robot.Traj.CalculateIntermediatePointsBetweenWayPoints(robot, WayPoints, 1.55);
+            robot.Traj = new Trajectory(WayPoints);
             robot.Speed = 1;
 
             for (int i = 0; i < 100; i++)
@@ -239,8 +239,8 @@ namespace AutoRobotTests
 
             MyRobot robot = new MyRobot(WayPoints[0], WayPoints[0].AbsoluteBearing(WayPoints[1]));
 
-            List<Point2D> trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(WayPoints, 1.55);
-            robot.Trajectory = WayPoints;
+            List<Point2D> trajectory = robot.Traj.CalculateIntermediatePointsBetweenWayPoints(robot, WayPoints, 1.55);
+            robot.Traj = new Trajectory(WayPoints);
             robot.Speed = 0;
             double lastSpeed = 0;
 
@@ -265,7 +265,7 @@ namespace AutoRobotTests
             rect.Add(T3);
             Robot robot = new Robot(new Point2D(0, 0));
 
-            robot.IsPointInsideRectangle(rect, P).Should().Equals(0);
+            robot.ObstacleAvoidModule.IsPointInsideRectangle(rect, P).Should().Equals(0);
         }
 
         [TestCase]
@@ -282,7 +282,7 @@ namespace AutoRobotTests
             rect.Add(T3);
             Robot robot = new Robot(new Point2D(0, 0));
 
-            robot.IsPointInsideRectangle(rect, P).Should().Equals(1);
+            robot.ObstacleAvoidModule.IsPointInsideRectangle(rect, P).Should().Equals(1);
         }
     }
 }
