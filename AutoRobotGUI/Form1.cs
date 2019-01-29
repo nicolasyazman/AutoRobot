@@ -186,6 +186,8 @@ namespace AutoRobotGUI
             int imageY = this.Height - (int)((robot.Position.Y) * ratioY) - 290;
             pictureBox1.Location = new Point(imageX, imageY);
 
+            this.chart1.Series[4].Points.Clear();
+            this.chart1.Series[4].Points.AddXY(robot.Position.X, robot.Position.Y);
         }
 
         public void ResizeEvent(Object myObject,
@@ -196,6 +198,9 @@ namespace AutoRobotGUI
             this.chart1.Width = this.Width;
             this.chart1.Height = this.Height;
         }
+
+        public static int Counter = 0;
+
         public Form1()
         {
             
@@ -286,9 +291,11 @@ namespace AutoRobotGUI
             this.chart1.Series[1].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Point;
             this.chart1.Series.Add(new System.Windows.Forms.DataVisualization.Charting.Series("Obstacles"));
             this.chart1.Series[2].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Point;
-            this.chart1.Series.Add(new System.Windows.Forms.DataVisualization.Charting.Series("OriginalTraj"));
+            this.chart1.Series.Add(new System.Windows.Forms.DataVisualization.Charting.Series("Original trajectory"));
             this.chart1.Series[3].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Point;
-
+            this.chart1.Series.Add(new System.Windows.Forms.DataVisualization.Charting.Series("Robot position"));
+            this.chart1.Series[4].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Point;
+            this.chart1.Series[4].MarkerSize = 30;
             for (int i = 0; i < trajectory.Count; i++)
                 this.chart1.Series[3].Points.AddXY(trajectory[i].X, trajectory[i].Y);
             myTimer.Tick += new EventHandler(TimerEventProcessor);
@@ -309,6 +316,37 @@ namespace AutoRobotGUI
             pictureBox1.Location = new Point((int)((startX-minX) * ratioX) + 220, this.Height - (int)((startY) * ratioY) + 120);
             // myTimer.Stop();
             pictureBox1.Visible = false;
+
+           // myTimer.Stop();
+
+            for (int i = 0; i < 2000; i++)
+            {
+                Thread t = new Thread(new ThreadStart(Increment));
+                t.Start();
+            }
+
+        }
+
+        private static void SafeAdd(int plus)
+        {
+            int ret, originalValue;
+            int i = 0;
+            do
+            {
+                originalValue = Counter;
+                ret = Interlocked.CompareExchange(ref Counter, originalValue + plus, originalValue);
+                i++;
+                if (ret != originalValue)
+                    Thread.Sleep((i + 1) * 2);
+            } while ((ret != originalValue));
+           
+
+        }
+
+        private static void Increment()
+        {
+            for (int i = 0; i < 10000; i++)
+                SafeAdd(1);
         }
 
         private void chart1_Click(object sender, EventArgs e)
