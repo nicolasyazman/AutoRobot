@@ -80,7 +80,10 @@ namespace AutoRobotGUI
             double RegulatedVoltageU2;
             // ----------------------------------------- MOVEROBOT ---------------------------------
             Point2D position = robot.MoveRobot(out RegulatedVoltageU1, out RegulatedVoltageU2, ConsigneVitesse, 0.6, K);
-            
+            //System.IO.File.AppendAllText(@"C:\Users\Nicolas\Documents\AutoRobotDoc\ConsigneVitesse.txt", ConsigneVitesse.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n");
+            //System.IO.File.AppendAllText(@"C:\Users\Nicolas\Documents\AutoRobotDoc\RegulatedSpeed.txt", robot.Speed.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n");
+            //System.IO.File.AppendAllText(@"C:\Users\Nicolas\Documents\AutoRobotDoc\RegulatedSteering.txt", RegulatedVoltageU2.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n");
+
             if (position.X == 0 && position.Y == 0)
                 return;
                 this.chart1.Series[1].Points.AddXY(position.X, position.Y);
@@ -109,8 +112,8 @@ namespace AutoRobotGUI
             
             
             int VehGridX, VehGridY;
-            List<Point2D> futureTraj = robot.GetEstimatedFuturTrajectory(10);
-            List<List<Point2D>> corridor = robot.GetVehicleCorridor(futureTraj);
+            List<Point2D> futureTraj = robot.PathPlanningModule.GetEstimatedFuturTrajectory(10);
+            List<List<Point2D>> corridor = robot.ObstacleAvoidModule.GetVehicleCorridor(futureTraj);
             this.chart1.Series[1].Points.Clear();
             
             for (int i = 0; i < corridor.Count; i++)
@@ -121,33 +124,33 @@ namespace AutoRobotGUI
                     this.chart1.Series[1].Points.AddXY(pt.X, pt.Y);
                 }
             }
-            if (robot.IsObstacleInTrajectory(ObstaclesPositions, 10))
+            if (robot.ObstacleAvoidModule.IsObstacleInTrajectory(ObstaclesPositions, 10))
             {
-                int[,] Grid = robot.CreatePotentialField(ObstaclesPositions, ObstSize, out VehGridX, out VehGridY, 50, 50, ObstSize, 100);
-                List<Point2D> positions = robot.FindShortestPath(Grid, 50, 50, VehGridX, VehGridY);
+                int[,] Grid = robot.PathPlanningModule.CreatePotentialField(ObstaclesPositions, ObstSize, out VehGridX, out VehGridY, 50, 50, ObstSize, 100);
+                List<Point2D> positions = robot.PathPlanningModule.FindShortestPath(Grid, 50, 50, VehGridX, VehGridY);
                 if (positions != null)
                 {
                     if (positions.Count != 0) // Found a trajectory
                     {
                         int startIdx, endIdx;
                         Robot dummyRobot = new Robot(robot.Position, robot.Bearing);
-                        dummyRobot.Trajectory = new List<Point2D>(robot.Trajectory);
+                        dummyRobot.Traj = new Trajectory(robot.Traj.TrajectoryPoints);
                         dummyRobot.MinIdxTraj = robot.MinIdxTraj;
                         dummyRobot.Position = robot.Position;
-                        dummyRobot.FindTrajectorySegment(out startIdx);
+                        dummyRobot.Traj.FindTrajectorySegment(dummyRobot, out startIdx);
                         dummyRobot.Position = positions[positions.Count - 1];
                         dummyRobot.MinIdxTraj = startIdx;
-                        dummyRobot.FindTrajectorySegment(out endIdx, dummyRobot.Trajectory.Count);
+                        dummyRobot.Traj.FindTrajectorySegment(dummyRobot, out endIdx, dummyRobot.Traj.TrajectoryPoints.Count);
 
                         int numberToSuppress = endIdx - startIdx;
                         while (numberToSuppress > 0)
                         {
-                            robot.Trajectory.RemoveAt(startIdx);
+                            robot.Traj.TrajectoryPoints.RemoveAt(startIdx);
                             numberToSuppress--;
                         }
-                        robot.Trajectory.InsertRange(startIdx, positions);
+                        robot.Traj.TrajectoryPoints.InsertRange(startIdx, positions);
 
-                        robot.Trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(robot.Trajectory, 0.2);
+                        robot.Traj.TrajectoryPoints = robot.Traj.CalculateIntermediatePointsBetweenWayPoints(robot, robot.Traj.TrajectoryPoints, 0.2);
                     }
                     
                 }
@@ -178,9 +181,9 @@ namespace AutoRobotGUI
             }
 
             this.chart1.Series[0].Points.Clear();
-            for (int i = 0; i < robot.Trajectory.Count; i++)
+            for (int i = 0; i < robot.Traj.TrajectoryPoints.Count; i++)
             {
-                this.chart1.Series[0].Points.AddXY(robot.Trajectory[i].X, robot.Trajectory[i].Y);
+                this.chart1.Series[0].Points.AddXY(robot.Traj.TrajectoryPoints[i].X, robot.Traj.TrajectoryPoints[i].Y);
             }
             int imageX = (int)((robot.Position.X - minX) * ratioX) + 200;
             int imageY = this.Height - (int)((robot.Position.Y) * ratioY) - 290;
@@ -278,8 +281,8 @@ namespace AutoRobotGUI
             this.chart1.ChartAreas[0].AxisY.Minimum = minY;
 
             this.Resize += ResizeEvent; 
-            List<Point2D> trajectory = robot.CalculateIntermediatePointsBetweenWayPoints(WayPoints, 0.2);
-            robot.Trajectory = trajectory;
+            List<Point2D> trajectory = robot.Traj.CalculateIntermediatePointsBetweenWayPoints(robot, WayPoints, 0.2);
+            robot.Traj.TrajectoryPoints = trajectory;
             this.chart1.Series[0].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Point;
             this.chart1.Series[0].Points.Clear();
             this.chart1.Series[0].Name = "PlannedTrajectory";
